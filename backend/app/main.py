@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import nav, tasks
+from app.routers import diary, nav, tasks
 
 
 @asynccontextmanager
@@ -24,6 +24,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(diary.router)
 app.include_router(nav.router)
 app.include_router(tasks.router)
 
