@@ -23,7 +23,7 @@ def list_tasks(task_date: date | None = Query(default=None, alias="date"), db: S
     stmt = select(Task)
     if task_date is not None:
         stmt = stmt.where(Task.date == task_date)
-    stmt = stmt.order_by(Task.date, Task.priority.desc(), Task.id)
+    stmt = stmt.order_by(Task.completed.asc(), Task.date, Task.priority.desc(), Task.id)
     return db.scalars(stmt).all()
 
 
@@ -34,6 +34,11 @@ def create_task(payload: TaskCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(task)
     return task
+
+
+@router.get("/{task_id}", response_model=TaskOut)
+def get_task(task_id: int, db: Session = Depends(get_db)):
+    return _get_task_or_404(db, task_id)
 
 
 @router.put("/{task_id}", response_model=TaskOut)

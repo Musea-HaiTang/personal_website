@@ -61,6 +61,15 @@ def test_task_toggle_completed(client):
     assert resp.json()["completed"] is False
 
 
+def test_task_incomplete_first(client):
+    done = client.post("/api/tasks", json={"title": "已完成任务", "date": "2026-08-14"}).json()
+    client.put(f"/api/tasks/{done['id']}", json={"completed": True})
+    client.post("/api/tasks", json={"title": "未完成任务", "date": "2026-08-14"})
+
+    tasks = client.get("/api/tasks").json()
+    assert [t["title"] for t in tasks] == ["未完成任务", "已完成任务"]
+
+
 def test_task_404_and_validation(client):
     assert client.put("/api/tasks/999", json={"title": "x"}).status_code == 404
     assert client.delete("/api/tasks/999").status_code == 404

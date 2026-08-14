@@ -61,6 +61,12 @@ def list_diary(
     return results
 
 
+@router.get("/{entry_id}", response_model=DiaryOut)
+def get_diary(entry_id: int, db: Session = Depends(get_db)):
+    entry = _get_entry_or_404(db, entry_id)
+    return _entry_to_out(entry)
+
+
 @router.post("", response_model=DiaryOut, status_code=201)
 def create_diary(payload: DiaryCreate, db: Session = Depends(get_db)):
     existing = db.scalar(select(DiaryEntry).where(DiaryEntry.date == payload.date))
