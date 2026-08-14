@@ -88,6 +88,13 @@ personal_website/
 - 验证：后端 uvicorn 能启动，前端 Vite 能启动，`/api/health` 可访问。
 - 业务收益：先把运行环境搭通，后续写功能时随时能启动和自测，减少最后才联调的返工。
 
+**状态：已完成（2026-08-14）**，对应 GitHub issue #2。
+
+- 后端骨架：FastAPI + SQLAlchemy 2.0 + SQLite，`/api/health` 返回时区（Asia/Shanghai）与 `AUTH_ENABLED`（默认 false）配置，数据目录 `backend/data/` 自动创建，SQLite 初始化无报错。
+- 前端骨架：Vite + Vue 3 + Tailwind + Pinia + Vue Router，侧边栏含五个页面路由（首页/计划/日记/番茄钟/导航），首页显示后端连通状态。
+- 一键启动：`start.bat` 同时拉起 uvicorn（8000）与 Vite（5173），`setup.bat` 负责首次初始化依赖。
+- 验证结果：`pytest` 5 项通过；`npm run build` 通过；手工冒烟 `/api/health`、前端页面、代理转发均返回 200。
+
 ### 阶段 2：后端数据层与 API
 
 - 内容：建表、Pydantic schema、五个模块的 CRUD 路由、日记 Markdown 文件读写服务、番茄按日统计、聚合首页接口。
@@ -124,7 +131,7 @@ personal_website/
 
 ## 4. 验收清单
 
-- [ ] 一键启动后前后端同时可用。
+- [x] 一键启动后前后端同时可用。
 - [ ] 新增一条任务，能在计划页和聚合首页看到。
 - [ ] 写一篇 Markdown 日记，能预览、搜索、编辑、删除。
 - [ ] 记一次番茄，今日统计更新；可绑定任务。

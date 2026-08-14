@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Node
+node_modules/
+dist/
+
+# 本地数据与配置
+backend/data/
+.env
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
