@@ -3,46 +3,31 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>日记页原型</title>
+<title>日记页原型 · 最终版</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f2f4f8;color:#1a2233;padding:48px 24px}
-.wrap{max-width:880px;margin:0 auto}
+.wrap{max-width:640px;margin:0 auto}
 h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
 p.lead{color:#667085;font-size:14px;margin:8px 0 32px;line-height:1.7}
-.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:18px}
-.card{background:#fff;border:1px solid #e4e8f0;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit;transition:.15s}
+.card{display:block;background:#fff;border:1px solid #e4e8f0;border-radius:16px;padding:24px;text-decoration:none;color:inherit;transition:.15s}
 .card:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(26,34,51,.08);border-color:#c9d4e8}
 .num{font-size:12px;font-weight:800;letter-spacing:.08em;color:#0e7c74}
-h2{font-size:17px;font-weight:700}
-.desc{font-size:13px;color:#667085;line-height:1.6;flex:1}
-.go{font-size:13px;font-weight:700;color:#0e7c74}
+h2{font-size:18px;font-weight:700;margin:8px 0}
+.desc{font-size:13px;color:#667085;line-height:1.7}
+.go{display:inline-block;margin-top:14px;font-size:13px;font-weight:700;color:#0e7c74}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>日记页布局方案（样式预览）</h1>
-  <p class="lead">三个静态 HTML 稿，数据全是假的，只看布局和视觉气质。打开哪个觉得对味，我们就按哪个改成真实页面；也可以把不同版本的局部拼起来。用底部悬浮条或 ← → 键切换版本。</p>
-  <div class="cards">
-    <a class="card" href="diary.html?variant=A" target="_blank">
-      <span class="num">A · 并排双纸</span>
-      <h2>便利贴 + 信纸 上下流</h2>
-      <p class="desc">两张纸并排写今天，下面统计、图表、往日记录一路往下。</p>
-      <span class="go">打开 →</span>
-    </a>
-    <a class="card" href="diary.html?variant=B" target="_blank">
-      <span class="num">B · 贴角信纸</span>
-      <h2>一个构图，便利贴贴在信纸上（已选定）</h2>
-      <p class="desc">主信纸居中，便利贴斜贴在角上，故事感最强。按你的注释改好了：信纸横线+楷体、标签输入、往日记录弹窗。</p>
-      <span class="go">打开 →</span>
-    </a>
-    <a class="card" href="diary.html?variant=C" target="_blank">
-      <span class="num">C · 双栏工作台</span>
-      <h2>左边写，右边看数据</h2>
-      <p class="desc">写作区和图表区常驻左右，适合边写边看统计。</p>
-      <span class="go">打开 →</span>
-    </a>
-  </div>
+  <h1>日记页原型 · 最终版</h1>
+  <p class="lead">定稿：贴角信纸（便利贴闪念 + 信纸日记 + 图表 + 编辑/往日记录弹窗）。数据全是假的，只看布局与交互。</p>
+  <a class="card" href="diary.html" target="_blank">
+    <span class="num">最终版 · 贴角信纸</span>
+    <h2>日记页 · 便利贴 × 信纸</h2>
+    <p class="desc">信纸摘要卡 + 便利贴灵感，下方统计/热力图/月度柱状图/常用标签；点信纸弹居中编辑窗，点「往日记录」弹历史列表。</p>
+    <span class="go">打开 →</span>
+  </a>
 </div>
 </body>
 </html>

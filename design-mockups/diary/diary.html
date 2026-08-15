@@ -6,8 +6,7 @@
 <title>日记页原型 · 便利贴 × 信纸</title>
 <!--
   PROTOTYPE - 可丢弃原型，不入生产。
-  问题：日记页三个结构不同的版本，用 ?variant=A|B|C 切换。
-  A 并排双纸(上下叙事流) / B 贴角信纸(一个构图) / C 双栏工作台(写+看常驻)。
+  日记页最终版：贴角信纸（便利贴闪念 + 信纸日记 + 图表 + 编辑/往日记录弹窗）。
 -->
 <style>
 :root{
@@ -134,12 +133,6 @@ input,textarea{font-family:inherit;color:var(--ink)}
 .tl.flash .kind{color:var(--amber);background:rgba(255,255,255,.6)}
 .tl .tags-row{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
 
-/* ---------- variant A ---------- */
-#vA .pair{display:grid;grid-template-columns:300px 1fr;gap:18px;align-items:stretch}
-#vA .sticky{display:flex;flex-direction:column}
-#vA .sticky .notes{flex:1}
-#vA .letter{min-height:300px}
-
 /* ---------- variant B ---------- */
 #vB .hero{position:relative;max-width:780px;margin:0 auto}
 #vB .letter{min-height:360px}
@@ -149,15 +142,6 @@ input,textarea{font-family:inherit;color:var(--ink)}
 #vB .corner{position:absolute;top:-12px;right:-14px;width:220px;z-index:5}
 #vB .corner .sticky{transform:rotate(3.5deg)}
 #vB .mid{max-width:780px;margin:0 auto}
-
-/* ---------- variant C ---------- */
-#vC .bench{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
-#vC .col-stats{display:flex;flex-direction:column;gap:14px;position:sticky;top:20px}
-#vC .col-stats .stats{grid-template-columns:repeat(2,1fr);margin:0}
-#vC .col-stats .charts{grid-template-columns:1fr;margin:0}
-#vC .col-stats .chart-card.wide{grid-column:span 1}
-#vC .letter textarea{min-height:240px}
-#vC .col-write{display:flex;flex-direction:column;gap:16px;min-width:0}
 
 /* ---------- history modal ---------- */
 .overlay{position:fixed;inset:0;background:rgba(43,38,34,.38);display:none;align-items:flex-start;justify-content:center;z-index:80;padding:7vh 18px 40px}
@@ -197,31 +181,20 @@ input,textarea{font-family:inherit;color:var(--ink)}
 
 /* ---------- variants switch ---------- */
 .variant{display:none}
-body[data-v="A"] #vA{display:block}
 body[data-v="B"] #vB{display:block}
-body[data-v="C"] #vC{display:block}
-
-.switcher{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:#201b17;color:#fff;border-radius:999px;padding:8px 14px;box-shadow:0 10px 30px rgba(0,0,0,.35);z-index:99;font-size:13px}
-.switcher button{background:none;border:none;color:#fff;font-size:18px;line-height:1;padding:2px 8px}
-.switcher button:hover{color:#ffd9a0}
-.switcher .lbl{min-width:150px;text-align:center}
-.switcher .hint{color:#b9a48c;font-size:11px;margin-left:6px}
 .toast{position:fixed;left:50%;bottom:80px;transform:translateX(-50%);background:var(--teal);color:#fff;border-radius:999px;padding:8px 16px;font-size:13px;box-shadow:0 8px 24px rgba(43,38,34,.25);opacity:0;pointer-events:none;transition:.25s;z-index:98}
 .toast.show{opacity:1}
 
 @media (max-width:960px){
   .side{display:none}
-  #vA .pair{grid-template-columns:1fr}
   #vB .corner{position:static;width:100%;margin:-6px auto 0}
   #vB .hero .letter .body,#vB .hero .letter textarea{padding-right:22px}
-  #vC .bench{grid-template-columns:1fr}
-  #vC .col-stats{position:static}
   .charts{grid-template-columns:1fr}
   .chart-card.wide{grid-column:span 1}
 }
 </style>
 </head>
-<body data-v="A">
+<body data-v="B">
 
 <div class="shell">
   <aside class="side">
@@ -237,47 +210,6 @@ body[data-v="C"] #vC{display:block}
 
   <main class="main">
     <div class="page">
-
-      <!-- ============ A 并排双纸 ============ -->
-      <section class="variant" id="vA">
-        <div class="topbar">
-          <h2>日记</h2>
-          <div class="otd-wrap">
-            <button class="btn otd">📬 去年今天</button>
-            <div class="otd-pop">
-              <div class="date">2025-08-15 · 星期六</div>
-              <h4>《杭州出差那两天》</h4>
-              <p>去年的今天你在杭州出差，晚上沿着西湖走了半圈，记了一篇「跑完步去吃了碗片儿川」。想回去看看吗？</p>
-            </div>
-          </div>
-          <button class="btn btn-history">📚 往日记录</button>
-          <span class="streak">已连续记录 <b>23</b> 天</span>
-        </div>
-
-        <div class="pair">
-          <div class="sticky">
-            <div class="s-head">灵感 · 今天</div>
-            <div class="notes"></div>
-            <div class="add"><input class="note-input" placeholder="突然想到什么？回车记下来"><button class="btn btn-note">贴一张</button></div>
-          </div>
-          <div class="paper letter clickable">
-            <div class="head page-head">
-              <div class="page-title"></div>
-              <div class="date serif">八月十五 · 星期六</div>
-            </div>
-            <div class="page-tags"></div>
-            <div class="body"></div>
-          </div>
-        </div>
-
-        <div class="stats"></div>
-        <div class="charts">
-          <div class="chart-card wide"><h3>写作热力图 · 近 6 个月</h3><div class="heatmap"></div><div class="hm-legend">少 <i class="c0"></i><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i> 多</div></div>
-          <div class="chart-card"><h3>每月字数 &amp; 闪念条数</h3><div class="bars"></div></div>
-          <div class="chart-card"><h3>常用标签</h3><div class="tags"></div></div>
-        </div>
-
-      </section>
 
       <!-- ============ B 贴角信纸 ============ -->
       <section class="variant" id="vB">
@@ -317,47 +249,6 @@ body[data-v="C"] #vC{display:block}
           <div class="stats"></div>
           <div class="charts">
             <div class="chart-card wide"><h3>写作热力图 · 近 6 个月</h3><div class="heatmap"></div><div class="hm-legend">少 <i class="c0"></i><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i> 多</div></div>
-            <div class="chart-card"><h3>每月字数 &amp; 闪念条数</h3><div class="bars"></div></div>
-            <div class="chart-card"><h3>常用标签</h3><div class="tags"></div></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ C 双栏工作台 ============ -->
-      <section class="variant" id="vC">
-        <div class="topbar">
-          <h2>日记</h2>
-          <div class="otd-wrap">
-            <button class="btn otd">📬 去年今天</button>
-            <div class="otd-pop">
-              <div class="date">2025-08-15 · 星期六</div>
-              <h4>《杭州出差那两天》</h4>
-              <p>去年的今天你在杭州出差，晚上沿着西湖走了半圈，记了一篇「跑完步去吃了碗片儿川」。想回去看看吗？</p>
-            </div>
-          </div>
-          <button class="btn btn-history">📚 往日记录</button>
-          <span class="streak">已连续记录 <b>23</b> 天</span>
-        </div>
-
-        <div class="bench">
-          <div class="col-write">
-            <div class="paper letter clickable">
-              <div class="head page-head">
-                <div class="page-title"></div>
-                <div class="date serif">八月十五 · 星期六</div>
-              </div>
-              <div class="page-tags"></div>
-              <div class="body"></div>
-            </div>
-            <div class="sticky">
-              <div class="s-head">灵感 · 今天</div>
-              <div class="notes"></div>
-              <div class="add"><input class="note-input" placeholder="想到了就贴"><button class="btn btn-note">贴一张</button></div>
-            </div>
-          </div>
-          <div class="col-stats">
-            <div class="stats"></div>
-            <div class="chart-card"><h3>写作热力图 · 近 6 个月</h3><div class="heatmap"></div><div class="hm-legend">少 <i class="c0"></i><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i> 多</div></div>
             <div class="chart-card"><h3>每月字数 &amp; 闪念条数</h3><div class="bars"></div></div>
             <div class="chart-card"><h3>常用标签</h3><div class="tags"></div></div>
           </div>
@@ -408,12 +299,6 @@ body[data-v="C"] #vC{display:block}
   </div>
 </div>
 
-<div class="switcher">
-  <button id="prev" title="上一个">‹</button>
-  <span class="lbl" id="lbl"></span>
-  <button id="next" title="下一个">›</button>
-  <span class="hint">← → 切换 · 原型假数据</span>
-</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -654,23 +539,6 @@ document.querySelector('.save-edit').addEventListener('click',()=>{
 document.querySelector('.cancel-edit').addEventListener('click',closeEdit)
 editOverlay.addEventListener('click',e=>{ if(e.target===editOverlay) closeEdit() })
 
-/* ================= 切换器 ================= */
-const VARIANTS=[['A','并排双纸 · 上下流'],['B','贴角信纸 · 已选定'],['C','双栏工作台 · 写+看']]
-const lbl=document.getElementById('lbl')
-function apply(v){
-  document.body.dataset.v=v
-  lbl.textContent=VARIANTS.find(x=>x[0]===v)[0]+' — '+VARIANTS.find(x=>x[0]===v)[1]
-  history.replaceState(null,'','?variant='+v)
-}
-function cycle(d){ const i=VARIANTS.findIndex(x=>x[0]===document.body.dataset.v); apply(VARIANTS[(i+d+VARIANTS.length)%VARIANTS.length][0]) }
-document.getElementById('prev').addEventListener('click',()=>cycle(-1))
-document.getElementById('next').addEventListener('click',()=>cycle(1))
-document.addEventListener('keydown',e=>{
-  if(['INPUT','TEXTAREA'].includes(e.target.tagName)) return
-  if(e.key==='ArrowLeft') cycle(-1)
-  if(e.key==='ArrowRight') cycle(1)
-})
-apply(new URLSearchParams(location.search).get('variant')||'A')
 </script>
 </body>
 </html>
