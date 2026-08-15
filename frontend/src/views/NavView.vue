@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '../api'
 
@@ -150,8 +150,8 @@ onMounted(loadData)
 <template>
   <div>
     <div class="mb-6 flex items-center justify-between">
-      <h2 class="text-2xl font-bold">导航</h2>
-      <button class="rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700" @click="openCategoryModal()">
+      <h2 class="font-serif text-2xl font-bold text-ink">导航</h2>
+      <button class="rounded bg-teal px-3 py-2 text-sm text-white hover:bg-teal-dark" @click="openCategoryModal()">
         新建分类
       </button>
     </div>
@@ -160,72 +160,72 @@ onMounted(loadData)
       v-model="keyword"
       type="text"
       placeholder="搜索标题、URL 或描述…"
-      class="mb-6 w-full max-w-md rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+      class="mb-6 w-full max-w-md rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none"
     />
 
-    <p v-if="error" class="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
-    <p v-if="loading" class="text-sm text-gray-500">加载中…</p>
-    <p v-else-if="!filteredCategories.length" class="text-sm text-gray-500">暂无导航内容，先新建一个分类吧。</p>
+    <p v-if="error" class="mb-4 rounded bg-red-soft px-3 py-2 text-sm text-red">{{ error }}</p>
+    <p v-if="loading" class="text-sm text-sub">加载中…</p>
+    <p v-else-if="!filteredCategories.length" class="text-sm text-sub">暂无导航内容，先新建一个分类吧。</p>
 
-    <div v-for="category in filteredCategories" :key="category.id" class="mb-6 rounded-lg border border-gray-200 bg-white shadow-sm">
-      <div class="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+    <div v-for="category in filteredCategories" :key="category.id" class="mb-6 rounded-lg border border-hairline bg-card shadow-sm">
+      <div class="flex items-center justify-between border-b border-hairline px-4 py-3">
         <h3 class="font-semibold">{{ category.name }}</h3>
         <div class="flex gap-2">
-          <button class="text-sm text-blue-600 hover:underline" @click="openLinkModal(category)">添加链接</button>
-          <button class="text-sm text-gray-500 hover:underline" @click="openCategoryModal(category)">重命名</button>
-          <button class="text-sm text-red-500 hover:underline" @click="deleteCategory(category)">删除</button>
+          <button class="text-sm text-teal hover:underline" @click="openLinkModal(category)">添加链接</button>
+          <button class="text-sm text-sub hover:underline" @click="openCategoryModal(category)">重命名</button>
+          <button class="text-sm text-red hover:underline" @click="deleteCategory(category)">删除</button>
         </div>
       </div>
-      <ul v-if="category.links.length" class="divide-y divide-gray-100">
+      <ul v-if="category.links.length" class="divide-y divide-hairline">
         <li v-for="link in category.links" :key="link.id" class="flex items-center gap-3 px-4 py-3">
-          <span :class="link.is_pinned ? 'text-amber-500' : 'text-gray-300'" title="置顶">★</span>
+          <span :class="link.is_pinned ? 'text-amber' : 'text-hairline'" title="置顶">★</span>
           <div class="min-w-0 flex-1">
-            <a :href="link.url" target="_blank" rel="noopener" class="font-medium text-blue-600 hover:underline">{{ link.title }}</a>
-            <p v-if="link.description" class="truncate text-sm text-gray-500">{{ link.description }}</p>
-            <p class="truncate text-xs text-gray-400">{{ link.url }}</p>
+            <a :href="link.url" target="_blank" rel="noopener" class="font-medium text-teal hover:underline">{{ link.title }}</a>
+            <p v-if="link.description" class="truncate text-sm text-sub">{{ link.description }}</p>
+            <p class="truncate text-xs text-sub">{{ link.url }}</p>
           </div>
           <div class="flex shrink-0 items-center gap-2 text-sm">
-            <button class="text-gray-500 hover:text-gray-800" title="上移" @click="moveLink(category, link, -1)">↑</button>
-            <button class="text-gray-500 hover:text-gray-800" title="下移" @click="moveLink(category, link, 1)">↓</button>
-            <button class="text-amber-600 hover:underline" @click="togglePin(link)">{{ link.is_pinned ? '取消置顶' : '置顶' }}</button>
-            <button class="text-blue-600 hover:underline" @click="openLinkModal(category, link)">编辑</button>
-            <button class="text-red-500 hover:underline" @click="deleteLink(link)">删除</button>
+            <button class="text-sub hover:text-ink" title="上移" @click="moveLink(category, link, -1)">↑</button>
+            <button class="text-sub hover:text-ink" title="下移" @click="moveLink(category, link, 1)">↓</button>
+            <button class="text-amber hover:underline" @click="togglePin(link)">{{ link.is_pinned ? '取消置顶' : '置顶' }}</button>
+            <button class="text-teal hover:underline" @click="openLinkModal(category, link)">编辑</button>
+            <button class="text-red hover:underline" @click="deleteLink(link)">删除</button>
           </div>
         </li>
       </ul>
-      <p v-else class="px-4 py-3 text-sm text-gray-400">该分类下暂无链接</p>
+      <p v-else class="px-4 py-3 text-sm text-sub">该分类下暂无链接</p>
     </div>
 
     <div v-if="modal.visible" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30" @click.self="closeModal">
-      <div class="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+      <div class="w-full max-w-md rounded-lg bg-card p-6 shadow-xl">
         <h3 class="mb-4 text-lg font-semibold">{{ modal.editing ? '编辑' : '新建' }}{{ modal.type === 'category' ? '分类' : '链接' }}</h3>
 
         <form v-if="modal.type === 'category'" @submit.prevent="saveCategory">
-          <label class="mb-1 block text-sm text-gray-600">分类名称</label>
-          <input v-model="categoryForm.name" type="text" required class="mb-4 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+          <label class="mb-1 block text-sm text-sub">分类名称</label>
+          <input v-model="categoryForm.name" type="text" required class="mb-4 w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
           <div class="flex justify-end gap-2">
-            <button type="button" class="rounded border border-gray-300 px-4 py-2 text-sm" @click="closeModal">取消</button>
-            <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">保存</button>
+            <button type="button" class="rounded border border-hairline px-4 py-2 text-sm" @click="closeModal">取消</button>
+            <button type="submit" class="rounded bg-teal px-4 py-2 text-sm text-white hover:bg-teal-dark">保存</button>
           </div>
         </form>
 
         <form v-else @submit.prevent="saveLink">
-          <label class="mb-1 block text-sm text-gray-600">标题</label>
-          <input v-model="linkForm.title" type="text" required class="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-          <label class="mb-1 block text-sm text-gray-600">URL</label>
-          <input v-model="linkForm.url" type="url" required class="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-          <label class="mb-1 block text-sm text-gray-600">描述</label>
-          <input v-model="linkForm.description" type="text" class="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
-          <label class="mb-1 block text-sm text-gray-600">分类</label>
-          <select v-model="linkForm.category_id" class="mb-3 w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none">
+          <label class="mb-1 block text-sm text-sub">标题</label>
+          <input v-model="linkForm.title" type="text" required class="mb-3 w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
+          <label class="mb-1 block text-sm text-sub">URL</label>
+          <input v-model="linkForm.url" type="url" required class="mb-3 w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
+          <label class="mb-1 block text-sm text-sub">描述</label>
+          <input v-model="linkForm.description" type="text" class="mb-3 w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
+          <label class="mb-1 block text-sm text-sub">分类</label>
+          <select v-model="linkForm.category_id" class="mb-3 w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none">
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
           </select>
-          <label class="mb-4 flex items-center gap-2 text-sm text-gray-600">
+          <label class="mb-4 flex items-center gap-2 text-sm text-sub">
             <input v-model="linkForm.is_pinned" type="checkbox" /> 置顶
           </label>
           <div class="flex justify-end gap-2">
-            <button type="button" class="rounded border border-gray-300 px-4 py-2 text-sm" @click="closeModal">取消</button>
-            <button type="submit" class="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700">保存</button>
+            <button type="button" class="rounded border border-hairline px-4 py-2 text-sm" @click="closeModal">取消</button>
+            <button type="submit" class="rounded bg-teal px-4 py-2 text-sm text-white hover:bg-teal-dark">保存</button>
           </div>
         </form>
       </div>

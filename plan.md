@@ -26,6 +26,7 @@
 personal_website/
 ├── plan.md
 ├── SPEC.md
+├── AGENTS.md                   # 仓库级 agent 指令（issue tracker / domain docs）
 ├── start.bat                    # 一键启动前后端
 ├── backend/
 │   ├── app/
@@ -55,7 +56,9 @@ personal_website/
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
-| `tasks` | 计划任务 | 标题、日期、优先级、备注、完成状态 |
+| `weekly_plans` | 本周计划 | 标题、重要度、备注、周起始日 |
+| `subtasks` | 子任务 | 所属计划、名字、备注、重要度、完成状态、完成时间 |
+| `tasks` | 今日任务 | 标题、日期、重要度、备注、完成状态、可关联计划与子任务、复盘原因 |
 | `diary_entries` | 日记元数据 | 日期（唯一）、标题、标签、正文文件路径 |
 | `pomodoro_sessions` | 番茄记录 | 开始/结束时间、专注时长、可选绑定任务 |
 | `nav_categories` | 导航分类 | 名称、排序 |
@@ -69,7 +72,7 @@ personal_website/
 | --- | --- | --- |
 | 健康检查 | `/api/health` | 前后端连通性 |
 | 聚合首页 | `/api/dashboard` | 今日任务、今日专注统计、最近日记、置顶导航 |
-| 计划 | `/api/tasks` | CRUD，按日期筛选 |
+| 计划 | `/api/plans`、`/api/subtasks`、`/api/tasks` | 计划/子任务/今日任务 CRUD；按日期/周筛选；顺延；周导出 |
 | 日记 | `/api/diary` | CRUD；搜索支持日期、标签、关键词 |
 | 番茄钟 | `/api/pomodoro/sessions` | 创建会话记录、按日统计 |
 | 导航 | `/api/nav/categories`、`/api/nav/links` | 分类和链接 CRUD |
@@ -113,11 +116,12 @@ personal_website/
 - 存储：正文写 `backend/data/diary/YYYY-MM-DD.md`，元数据入库；`/api/diary` 支持 CRUD、按日期/标签/关键词（标题+正文）搜索、同日冲突 409。
 - 验证结果：pytest 日记用例（文件生成、加载编辑、三类搜索、删除、冲突）通过。
 
-**计划任务 API 已完成（2026-08-14）**，对应 GitHub issue #4 的后端部分：
+**计划任务 API 已完成（2026-08-15）**，对应 GitHub issue #4 的后端部分：
 
-- 表：`tasks`（标题、日期、优先级 1-3、备注、完成状态），预留 `user_id`。
-- 路由：`/api/tasks` 完整 CRUD（含单篇 GET）；`GET /api/tasks?date=YYYY-MM-DD` 支持按日期筛选；列表按未完成在前、日期、优先级降序排序。
-- 验证结果：pytest 任务用例（CRUD、日期筛选、完成切换、404/校验）通过。
+- 表：`weekly_plans`（标题、重要度、备注、周起始日）、`subtasks`（所属计划、名字、备注、重要度、完成状态、完成时间）、`tasks`（今日任务：标题、日期、重要度、备注、完成状态，可关联计划与子任务、记录复盘原因）。
+- 路由：`/api/plans`（嵌套返回子任务）CRUD；`/api/subtasks` CRUD；`/api/tasks` CRUD（按日期筛选）；`POST /api/tasks/{id}/rollover` 顺延到明天；`GET /api/plans/week/export` 导出本周计划 Markdown。
+- 联动：完成今日任务自动完成所关联子任务，重新打开同步回退；删除计划级联删除其子任务；子任务被删除时解除任务关联。
+- 验证结果：pytest 计划任务用例（计划/子任务/今日任务 CRUD、关联完成、顺延、周导出、404/校验）通过。
 
 **导航模块 API 已完成（2026-08-14）**，对应 GitHub issue #3 的后端部分：
 
@@ -153,11 +157,12 @@ personal_website/
 - 交互：搜索即输即筛，删除有确认；加载、保存、删除失败时有错误提示。
 - 验证结果（root 复核）：全量 `pytest` 22 项通过；`npm run build` 通过；手工冒烟完成保存生成 md 文件、编辑、三类搜索命中、删除清理，均正常。
 
-**计划页已完成（2026-08-14）**，对应 GitHub issue #4：
+**计划页已完成（2026-08-15）**，对应 GitHub issue #4：
 
-- 页面功能：按日期分组展示任务；新增/编辑（标题、日期、优先级、备注）；删除；复选框一键完成/重新打开；日期筛选与清除筛选。
-- 交互：新增/编辑用模态表单，删除有确认；加载、保存、删除失败时有错误提示。
-- 验证结果（root 复核）：全量 `pytest` 22 项通过；`npm run build` 通过；手工冒烟完成新增、未完成在前排序、日期筛选、完成切换、删除，均正常。
+- 页面功能：标签页「今日 / 本周计划 / 已完成 / 复盘」；今日任务表格（名字/标签/备注/重要度，列宽可拖拽并本地记忆）；本周计划页签左列表右详情（进度环、重要度、子任务表格）；点任务/子任务/计划弹窗编辑；添加今日任务可从计划子任务挑选并建立关联。
+- 复盘：未完成任务点开弹窗填写原因后顺延到明天，支持全部顺延；已完成页签查看详情并在确认后重新打开；顶部导出本周计划（Markdown）。
+- 交互：删除计划/子任务/任务、重新打开均有确认；加载、保存、删除失败时有错误提示。
+- 验证结果（root 复核）：全量 `pytest` 25 项通过；`npm run build` 通过。
 
 **导航页已完成（2026-08-14）**，对应 GitHub issue #3：
 
@@ -185,7 +190,8 @@ personal_website/
 - [ ] 记一次番茄，今日统计更新；可绑定任务。（番茄记录与统计已完成，绑定任务见 #8）
 - [x] 新增导航分类和链接，能置顶、搜索、编辑、删除。
 - [ ] 聚合首页四块数据与各模块同步。
-- [x] 后端 API 冒烟测试通过（pytest 22 项）。
+- [x] 后端 API 冒烟测试通过（pytest 25 项）。
+- [x] 计划页支持本周计划/子任务/今日任务、复盘顺延与周导出。
 - [x] `npm run build` 通过。
 
 ## 5. 后续阶段展望
@@ -201,3 +207,19 @@ personal_website/
 - 时间统一按 `Asia/Shanghai` 存储和展示。
 - 测试使用独立 SQLite 文件或临时目录，不污染真实数据。
 - 每个阶段完成并验证后再进入下一阶段。
+- 全站 UI 采用「纸感」主题：米色纸底、暖白卡片、细线边框、墨绿主色、衬线大标题；色板与字体定义在 `frontend/tailwind.config.js`，后续页面统一沿用，有问题再局部调整。
+
+## 7. 工程工作流（Matt Pocock 技能套件）
+
+本仓库从需求到落地的标准流程；每个新仓库第一次使用这套技能前，先运行 `/setup-matt-pocock-skills` 完成配置（本仓库 issue tracker 为 GitHub，见 `docs/agents/issue-tracker.md`）。
+
+1. `/setup-matt-pocock-skills`：初始化仓库配置（issue tracker、domain docs 布局），生成 `docs/agents/*.md` 与根目录 `AGENTS.md` 的「## Agent skills」指引块。
+2. `/grill-me`：设计访谈，把想法问清楚、确定方案。
+3. `/prototype`：UI 类需求先做可丢弃的 HTML 原型变体（放 `design-mockups/`）供挑选与迭代；定稿后把决策固化进 plan.md / SPEC。
+4. `/to-spec`：把已确认的需求写成 SPEC，发布为 GitHub issue（本仓库为 #1），打 `ready-for-agent` 标签。
+5. `/to-tickets`：把 SPEC 拆成 tracer-bullet 纵向切片 issue（本仓库 #2–#8），每个 issue 写明 `Blocked by` 依赖。
+6. 按 frontier 顺序实现：只做没有未完成阻塞依赖的 issue；一个 issue 一个 commit，commit 消息引用 issue 号。
+7. `/code-review`：对一次改动做双轴审查（Standards 是否符合仓库规范、Spec 是否实现对应 issue 要求），通过后关闭该 issue。
+8. 全部完成后做整体验收，并同步更新 plan.md。
+
+当前进度（2026-08-15）：#2–#6 已初步实现并推送（对应提交 `02c28fe`/`9dc19e8`/`b52c376`/`00a9af8`/`bb06e77`），部分细节仍在打磨、暂未确认关闭；确认后 frontier 为 #7 聚合首页 → #8 番茄绑定任务与整体验收。

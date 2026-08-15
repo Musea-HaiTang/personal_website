@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import MarkdownIt from 'markdown-it'
 import api from '../api'
@@ -110,72 +110,72 @@ onMounted(async () => {
 <template>
   <div>
     <div class="mb-6 flex items-center justify-between">
-      <h2 class="text-2xl font-bold">日记</h2>
-      <button class="rounded bg-blue-600 px-3 py-2 text-sm text-white hover:bg-blue-700" @click="newDiary">新建日记</button>
+      <h2 class="font-serif text-2xl font-bold text-ink">日记</h2>
+      <button class="rounded bg-teal px-3 py-2 text-sm text-white hover:bg-teal-dark" @click="newDiary">新建日记</button>
     </div>
 
     <div class="mb-4 flex flex-wrap gap-2">
-      <input v-model="search.q" type="text" placeholder="关键词搜索" class="w-48 rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" @input="loadEntries" />
-      <input v-model="search.tag" type="text" placeholder="按标签筛选" class="w-40 rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" @input="loadEntries" />
-      <input v-model="search.day" type="date" class="rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" @change="loadEntries" />
-      <button v-if="search.q || search.tag || search.day" class="text-sm text-gray-500 hover:underline" @click="search.q = ''; search.tag = ''; search.day = ''; loadEntries()">清除筛选</button>
+      <input v-model="search.q" type="text" placeholder="关键词搜索" class="w-48 rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" @input="loadEntries" />
+      <input v-model="search.tag" type="text" placeholder="按标签筛选" class="w-40 rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" @input="loadEntries" />
+      <input v-model="search.day" type="date" class="rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" @change="loadEntries" />
+      <button v-if="search.q || search.tag || search.day" class="text-sm text-sub hover:underline" @click="search.q = ''; search.tag = ''; search.day = ''; loadEntries()">清除筛选</button>
     </div>
 
-    <p v-if="error" class="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="mb-4 rounded bg-red-soft px-3 py-2 text-sm text-red">{{ error }}</p>
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
       <aside>
-        <p v-if="loading" class="text-sm text-gray-500">加载中…</p>
-        <p v-else-if="!entries.length" class="text-sm text-gray-500">暂无日记</p>
+        <p v-if="loading" class="text-sm text-sub">加载中…</p>
+        <p v-else-if="!entries.length" class="text-sm text-sub">暂无日记</p>
         <ul v-else class="space-y-2">
           <li
             v-for="entry in entries"
             :key="entry.id"
-            class="cursor-pointer rounded border border-gray-200 bg-white px-3 py-2 hover:border-blue-300"
-            :class="{ 'border-blue-500': form.id === entry.id }"
+            class="cursor-pointer rounded border border-hairline bg-card px-3 py-2 hover:border-teal"
+            :class="{ 'border-teal': form.id === entry.id }"
             @click="selectEntry(entry)"
           >
             <p class="truncate text-sm font-medium">{{ entry.title }}</p>
-            <p class="text-xs text-gray-400">{{ entry.date }}</p>
+            <p class="text-xs text-sub">{{ entry.date }}</p>
             <p v-if="entry.tags.length" class="mt-1 flex flex-wrap gap-1">
-              <span v-for="tag in entry.tags" :key="tag" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">{{ tag }}</span>
+              <span v-for="tag in entry.tags" :key="tag" class="rounded bg-paper-soft px-1.5 py-0.5 text-xs text-sub">{{ tag }}</span>
             </p>
           </li>
         </ul>
       </aside>
 
-      <div class="rounded-lg border border-gray-200 bg-white shadow-sm">
-        <div class="border-b border-gray-100 p-4">
+      <div class="rounded-lg border border-hairline bg-card shadow-sm">
+        <div class="border-b border-hairline p-4">
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
-              <label class="mb-1 block text-sm text-gray-600">日期</label>
-              <input v-model="form.date" type="date" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+              <label class="mb-1 block text-sm text-sub">日期</label>
+              <input v-model="form.date" type="date" class="w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
             </div>
             <div class="sm:col-span-2">
-              <label class="mb-1 block text-sm text-gray-600">标题</label>
-              <input v-model="form.title" type="text" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+              <label class="mb-1 block text-sm text-sub">标题</label>
+              <input v-model="form.title" type="text" class="w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
             </div>
           </div>
           <div class="mt-3">
-            <label class="mb-1 block text-sm text-gray-600">标签（逗号分隔）</label>
-            <input v-model="form.tags" type="text" placeholder="生活, 工作" class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none" />
+            <label class="mb-1 block text-sm text-sub">标签（逗号分隔）</label>
+            <input v-model="form.tags" type="text" placeholder="生活, 工作" class="w-full rounded border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
           </div>
         </div>
 
         <div class="grid grid-cols-1 md:grid-cols-2">
-          <div class="border-b border-gray-100 md:border-b-0 md:border-r">
-            <p class="border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-400">编辑</p>
+          <div class="border-b border-hairline md:border-b-0 md:border-r">
+            <p class="border-b border-hairline px-4 py-2 text-xs font-medium text-sub">编辑</p>
             <textarea v-model="form.content" rows="18" placeholder="用 Markdown 写日记…" class="w-full resize-y bg-transparent px-4 py-3 text-sm focus:outline-none"></textarea>
           </div>
           <div>
-            <p class="border-b border-gray-100 px-4 py-2 text-xs font-medium text-gray-400">预览</p>
+            <p class="border-b border-hairline px-4 py-2 text-xs font-medium text-sub">预览</p>
             <div class="prose prose-sm max-w-none px-4 py-3 text-sm" v-html="previewHtml"></div>
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 border-t border-gray-100 p-4">
-          <button v-if="form.id" class="rounded border border-red-200 px-4 py-2 text-sm text-red-600 hover:bg-red-50" @click="deleteDiary">删除</button>
-          <button class="rounded bg-blue-600 px-4 py-2 text-sm text-white hover:bg-blue-700" :disabled="saving" @click="saveDiary">
+        <div class="flex justify-end gap-2 border-t border-hairline p-4">
+          <button v-if="form.id" class="rounded border border-red px-4 py-2 text-sm text-red hover:bg-red-soft" @click="deleteDiary">删除</button>
+          <button class="rounded bg-teal px-4 py-2 text-sm text-white hover:bg-teal-dark" :disabled="saving" @click="saveDiary">
             {{ saving ? '保存中…' : form.id ? '保存修改' : '保存' }}
           </button>
         </div>

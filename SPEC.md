@@ -15,12 +15,12 @@
 3. As 网站主人, I want 在聚合首页看到今日番茄钟次数和总时长, so that 快速了解今天的专注情况
 4. As 网站主人, I want 在聚合首页看到最近几篇日记, so that 方便回顾和续写
 5. As 网站主人, I want 在聚合首页看到置顶导航链接, so that 常用网站一键直达
-6. As 网站主人, I want 新增计划任务时填写标题、日期、优先级和备注, so that 任务信息完整可检索
-7. As 网站主人, I want 计划页按日期分组展示任务, so that 我能按天安排和查看
-8. As 网站主人, I want 编辑已有任务, so that 日期或优先级变化时能及时修正
-9. As 网站主人, I want 一键把任务标记为完成或重新打开, so that 状态维护成本最低
-10. As 网站主人, I want 删除不再需要的任务, so that 列表保持干净
-11. As 网站主人, I want 按日期筛选任务, so that 只看某一天的计划
+6. As 网站主人, I want 添加本周计划并设置重要度（低/中/高）, so that 一周大方向一目了然，中途想到随时补
+7. As 网站主人, I want 在本周计划下添加多个子任务（名字、备注、重要度）, so that 大方向拆成可执行的小事，子任务全部完成即计划完成
+8. As 网站主人, I want 今日任务可关联计划子任务，完成今日任务即完成该子任务, so that 日计划与周计划联动
+9. As 网站主人, I want 计划页按「今日 / 本周计划 / 已完成 / 复盘」分页签管理，并可导出本周计划完成情况, so that 每天先看今日、晚上复盘、周末回顾
+10. As 网站主人, I want 编辑、删除、勾选完成或重新打开今日任务, so that 状态维护成本最低
+11. As 网站主人, I want 复盘时为未完成任务填写原因并顺延到明天, so that 知道为什么没完成、任务不丢
 12. As 网站主人, I want 为某一天创建日记, so that 每天的记录都归档在同一位置
 13. As 网站主人, I want 用 Markdown 写日记并即时预览, so that 排版和内容编辑体验好
 14. As 网站主人, I want 给日记添加一个或多个标签, so that 之后能按主题归类查找
@@ -51,10 +51,10 @@
 - 技术栈：前端 Vue 3.5 + Vite + Tailwind + Pinia + Vue Router + Axios，无第三方 UI 组件库，界面自绘；后端 FastAPI + SQLAlchemy 2.0 + SQLite + Pydantic v2；前端 Markdown 预览使用 markdown-it。
 - 项目形态：单一 monorepo，前端和后端分目录，后端按 routers / services / schemas 分层，沿用既有 Novel2YAML 项目的组织风格。
 - 页面与路由：聚合首页、计划页、日记页、番茄钟页、导航页，侧边栏导航，中文界面，桌面优先并做基础响应式。
-- 数据库表：tasks（计划任务）、diary_entries（日记元数据）、pomodoro_sessions（番茄记录）、nav_categories（导航分类）、nav_links（导航链接）；所有表预留可空 user_id 字段。
+- 数据库表：weekly_plans（本周计划）、subtasks（子任务）、tasks（今日任务，可关联计划子任务、记录复盘原因）、diary_entries（日记元数据）、pomodoro_sessions（番茄记录）、nav_categories（导航分类）、nav_links（导航链接）；所有表预留可空 user_id 字段。
 - 日记存储：正文写为按日期命名的 Markdown 文件，日期、标题、标签等元数据写入 SQLite；关键词搜索在个人数据量级下直接扫描正文。
-- API 合同：计划、日记、番茄钟、导航各提供独立的 CRUD 路由；番茄钟提供按日统计；提供聚合首页接口，返回今日任务、今日专注统计、最近日记和置顶导航。
-- 模块联动：番茄记录可选绑定计划任务；日记按日期归档；导航模块独立；不做日历、目标拆解和完整统计报表。
+- API 合同：计划（计划/子任务/今日任务）、日记、番茄钟、导航各提供独立的 CRUD 路由；计划提供按日期/周筛选、顺延与周导出（Markdown）；番茄钟提供按日统计；提供聚合首页接口，返回今日任务、今日专注统计、最近日记和置顶导航。
+- 模块联动：番茄记录可选绑定计划任务；今日任务可关联计划子任务（完成即子任务完成），未完成可在复盘时填写原因并顺延到明天；日记按日期归档；提供一周计划导出；导航模块独立；不做日历、目标拆解和完整统计报表。
 - 鉴权：P0 免登录，保留 AUTH_ENABLED 配置开关；未来上公网时先加单密码或完整账号体系。
 - 时间处理：统一按本地时区 Asia/Shanghai 存储和展示。
 - 运行方式：提供一键启动脚本，同时启动后端 uvicorn 和前端 Vite 开发服务器；Docker、nginx、HTTPS 留到公网阶段。
@@ -79,4 +79,4 @@
 
 - 实现前先编写并持续同步 plan.md；每个阶段完成后用业务语言说明该阶段的作用和收益。
 - 测试接缝默认采用后端 API 单接缝；如果后续希望增加前端组件测试，再在对应模块补 Vitest 用例。
-- 本规格暂存于仓库内；当前环境未配置 issue tracker（无远程仓库、无 GitHub CLI、无相关连接器），待配置后按 to-spec 流程发布到项目 issue tracker 并打上 ready-for-agent 标签。
+- 本规格已发布为 GitHub issue #1（仓库 `Musea-HaiTang/personal_website`），并据此拆分为实施 issue #2–#8，均已打 `ready-for-agent` 标签。工程工作流与 issue tracker 约定见 `docs/agents/issue-tracker.md` 与 plan.md「工程工作流」一节。

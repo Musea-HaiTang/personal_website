@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方案 A · 今日工作台（左右分栏）</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f2f4f8;--card:#fff;--line:#e4e8f0;--ink:#1a2233;--sub:#667085;
+  --blue:#2f6bff;--blue-soft:#eef3ff;--green:#17a673;--green-soft:#e8f7f1;
+  --amber:#c4760a;--amber-soft:#fdf3e0;--red:#d64545;--red-soft:#fdecec;
+}
+body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+.app{max-width:1180px;margin:0 auto;padding:22px 24px 48px}
+.topbar{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.topbar h1{font-size:26px;font-weight:800;letter-spacing:-.02em}
+.topbar h1 span{color:var(--sub);font-size:16px;font-weight:600;margin-left:6px}
+.topbar p{color:var(--sub);font-size:13px;margin-top:4px}
+.topbar-right{display:flex;align-items:center;gap:14px}
+.today-progress{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+.today-progress .bar{width:86px;height:6px;border-radius:99px;background:#dde3ec;overflow:hidden}
+.today-progress .bar i{display:block;height:100%;background:var(--blue);border-radius:99px;transition:.3s}
+.today-progress b{color:var(--ink);font-size:13px}
+.btn{border:0;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer;background:var(--blue);color:#fff}
+.btn:hover{filter:brightness(1.06)}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.split{display:grid;grid-template-columns:1fr 340px;gap:18px;align-items:start}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.panel-head{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px}
+.panel-head h2{font-size:15px;font-weight:700}
+.panel-head .hint{font-size:12px;color:var(--sub)}
+.quick-add{display:flex;gap:8px;padding:13px 18px;border-bottom:1px solid var(--line);background:#fafbfe}
+.quick-add input{flex:1;min-width:0;border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-size:14px;outline:none;background:#fff}
+.quick-add input:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+.quick-add select{border:1px solid var(--line);border-radius:8px;padding:8px 6px;font-size:13px;background:#fff;outline:none;color:var(--ink)}
+.task{display:flex;align-items:center;gap:12px;padding:12px 18px;border-bottom:1px solid var(--line)}
+.task:last-child{border-bottom:0}
+.task.done .task-title{color:#9aa3b2;text-decoration:line-through}
+.check{width:20px;height:20px;border:2px solid #c6cdd9;border-radius:50%;flex:none;cursor:pointer;display:grid;place-items:center;transition:.15s;user-select:none}
+.check.on{background:var(--green);border-color:var(--green)}
+.check.on::after{content:"✓";color:#fff;font-size:12px;font-weight:800}
+.check.small{width:15px;height:15px;border-width:1.5px}
+.check.small.on::after{font-size:10px}
+.task-main{flex:1;min-width:0}
+.task-title{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.goal-tag{font-size:11px;color:var(--sub);background:#f2f4f8;border-radius:99px;padding:2px 8px;display:inline-flex;align-items:center;gap:4px;font-weight:500;white-space:nowrap}
+.goal-tag i{width:6px;height:6px;border-radius:50%;display:inline-block}
+.task-note{font-size:12px;color:var(--sub);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.imp{font-size:11px;font-weight:700;border-radius:6px;padding:3px 7px;flex:none}
+.imp.high{color:var(--red);background:var(--red-soft)}
+.imp.mid{color:var(--amber);background:var(--amber-soft)}
+.imp.low{color:var(--sub);background:#f0f2f6}
+.task-actions{display:flex;gap:4px;opacity:0;transition:.15s}
+.task:hover .task-actions{opacity:1}
+.task-actions button{border:0;background:none;font-size:12px;color:var(--sub);cursor:pointer;padding:4px 6px;border-radius:6px;white-space:nowrap}
+.task-actions button:hover{background:#eef1f6;color:var(--ink)}
+.collapse{padding:11px 18px;border-top:1px solid var(--line);display:flex;align-items:center;gap:8px;font-size:13px;color:var(--sub);cursor:pointer;background:#fafbfe;user-select:none}
+.collapse b{color:var(--ink)}
+.collapse .arrow{transition:.15s;font-size:11px}
+.collapse.open .arrow{transform:rotate(90deg)}
+.collapse-body{display:none}
+.collapse-body.show{display:block}
+.review{margin:14px 18px 18px;border-radius:12px;background:var(--blue-soft);border:1px solid #dbe7ff;padding:14px 16px}
+.review h3{font-size:14px;font-weight:700;margin-bottom:6px}
+.review p{font-size:13px;color:#3a4a6b;margin-bottom:10px}
+.review .row{display:flex;gap:8px;flex-wrap:wrap}
+.goal{padding:13px 18px;border-bottom:1px solid var(--line);cursor:pointer;user-select:none}
+.goal:hover{background:#fafbfe}
+.goal-head{display:flex;align-items:center;gap:10px}
+.goal-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.goal-title{flex:1;font-size:14px;font-weight:700}
+.goal-meta{font-size:12px;color:var(--sub);white-space:nowrap}
+.goal .arrow{transition:.15s;color:var(--sub);font-size:12px}
+.goal.open .arrow{transform:rotate(90deg)}
+.goal-bar{height:5px;border-radius:99px;background:#e8ebf1;margin-top:10px;overflow:hidden}
+.goal-bar i{display:block;height:100%;border-radius:99px}
+.goal-body{display:none;margin-top:8px}
+.goal.open .goal-body{display:block}
+.subtask{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px dashed var(--line);font-size:13px}
+.subtask:first-child{border-top:0}
+.subtask .name{flex:1}
+.subtask .day{font-size:11px;color:var(--sub);background:#f2f4f8;border-radius:6px;padding:2px 6px;white-space:nowrap}
+.empty{padding:26px 18px;text-align:center;color:#98a2b3;font-size:13px}
+@media(max-width:920px){.split{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div>
+      <h1>8月15日<span>周六</span></h1>
+      <p>晚上记得复盘 · 没完成的顺延到明天</p>
+    </div>
+    <div class="topbar-right">
+      <div class="today-progress">
+        <span>今日进度</span>
+        <div class="bar"><i id="todayBar" style="width:60%"></i></div>
+        <b id="todayCount">3/5</b>
+      </div>
+      <button class="btn ghost">⤓ 导出本周</button>
+    </div>
+  </header>
+
+  <main class="split">
+    <section class="panel">
+      <div class="panel-head">
+        <h2>今日执行</h2>
+        <span class="hint">重要的事先做 · 点圆圈完成</span>
+      </div>
+      <div class="quick-add">
+        <input id="taskInput" type="text" placeholder="记下今天要做的一件事，回车添加…">
+        <select id="taskImp">
+          <option value="高">高</option>
+          <option value="中" selected>中</option>
+          <option value="低">低</option>
+        </select>
+        <button class="btn" onclick="addToday()">添加</button>
+      </div>
+
+      <div id="todayList">
+        <div class="task">
+          <span class="check" onclick="toggleTask(this)"></span>
+          <div class="task-main">
+            <div class="task-title">完成计划页前端联调 <span class="goal-tag"><i style="background:#2f6bff"></i>个人网站 P0</span></div>
+            <div class="task-note">今天/本周两个视图切完，顺带验证一周导出</div>
+          </div>
+          <span class="imp high">高</span>
+          <div class="task-actions">
+            <button onclick="rolloverOne(this)">顺延明天</button>
+            <button>编辑</button>
+          </div>
+        </div>
+        <div class="task">
+          <span class="check" onclick="toggleTask(this)"></span>
+          <div class="task-main">
+            <div class="task-title">力量训练 40 分钟 <span class="goal-tag"><i style="background:#17a673"></i>健身 3 次</span></div>
+          </div>
+          <span class="imp mid">中</span>
+          <div class="task-actions">
+            <button onclick="rolloverOne(this)">顺延明天</button>
+            <button>编辑</button>
+          </div>
+        </div>
+        <div class="task">
+          <span class="check" onclick="toggleTask(this)"></span>
+          <div class="task-main">
+            <div class="task-title">整理《小王子》书摘 <span class="goal-tag"><i style="background:#d97706"></i>读完《小王子》</span></div>
+          </div>
+          <span class="imp low">低</span>
+          <div class="task-actions">
+            <button onclick="rolloverOne(this)">顺延明天</button>
+            <button>编辑</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="collapse" onclick="toggleCollapse(this)">
+        <span class="arrow">▶</span><span>已完成</span><b id="doneCount">2</b><span style="margin-left:auto;font-size:11px">点开还能看到完成过的任务</span>
+      </div>
+      <div class="collapse-body" id="doneBody">
+        <div class="task done">
+          <span class="check on" onclick="toggleTask(this)"></span>
+          <div class="task-main">
+            <div class="task-title">后端周接口与导出接口 <span class="goal-tag"><i style="background:#2f6bff"></i>个人网站 P0</span></div>
+          </div>
+          <span class="imp high">高</span>
+          <span class="goal-tag">完成 昨天 21:04</span>
+        </div>
+        <div class="task done">
+          <span class="check on" onclick="toggleTask(this)"></span>
+          <div class="task-main">
+            <div class="task-title">跑步 5 公里 <span class="goal-tag"><i style="background:#17a673"></i>健身 3 次</span></div>
+          </div>
+          <span class="imp mid">中</span>
+          <span class="goal-tag">完成 周二 19:10</span>
+        </div>
+      </div>
+
+      <div class="review">
+        <h3>晚上复盘</h3>
+        <p id="reviewText">还有 <b>3</b> 件事没完成，可以现在做完，或顺延到明天。</p>
+        <div class="row">
+          <button class="btn" onclick="rolloverAll()">全部顺延到明天</button>
+          <button class="btn ghost">写今日日记 →</button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="panel-head">
+        <h2>本周方向</h2>
+        <span class="hint">8.10 – 8.16</span>
+      </div>
+      <div class="quick-add">
+        <input id="goalInput" type="text" placeholder="中途想到的大目标，随时加…">
+        <button class="btn" onclick="addGoal()">＋</button>
+      </div>
+      <div id="goalList">
+        <div class="goal" onclick="toggleGoal(this)">
+          <div class="goal-head">
+            <span class="goal-dot" style="background:#2f6bff"></span>
+            <span class="goal-title">完成个人网站 P0</span>
+            <span class="goal-meta">3/5 子任务</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="goal-bar"><i style="width:60%;background:#2f6bff"></i></div>
+          <div class="goal-body">
+            <div class="subtask"><span class="check small on" onclick="toggleSub(this)"></span><span class="name">计划页改版</span><span class="day">周四</span></div>
+            <div class="subtask"><span class="check small on" onclick="toggleSub(this)"></span><span class="name">后端周接口与导出</span><span class="day">周五</span></div>
+            <div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">前端联调</span><span class="day">今天</span></div>
+            <div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">写验收用例</span><span class="day">未排期</span></div>
+            <div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">冒烟回归</span><span class="day">未排期</span></div>
+          </div>
+        </div>
+        <div class="goal" onclick="toggleGoal(this)">
+          <div class="goal-head">
+            <span class="goal-dot" style="background:#17a673"></span>
+            <span class="goal-title">健身 3 次</span>
+            <span class="goal-meta">1/3 子任务</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="goal-bar"><i style="width:33%;background:#17a673"></i></div>
+          <div class="goal-body">
+            <div class="subtask"><span class="check small on" onclick="toggleSub(this)"></span><span class="name">跑步 5 公里</span><span class="day">周二</span></div>
+            <div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">力量训练</span><span class="day">今天</span></div>
+            <div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">游泳</span><span class="day">未排期</span></div>
+          </div>
+        </div>
+        <div class="goal" onclick="toggleGoal(this)">
+          <div class="goal-head">
+            <span class="goal-dot" style="background:#d97706"></span>
+            <span class="goal-title">读完《小王子》</span>
+            <span class="goal-meta">1/2 子任务</span>
+            <span class="arrow">▶</span>
+          </div>
+          <div class="goal-bar"><i style="width:50%;background:#d97706"></i></div>
+          <div class="goal-body">
+            <div class="subtask"><span class="check small on" onclick="toggleSub(this)"></span><span class="name">读完前半</span><span class="day">周三</span></div>
+            <div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">整理书摘</span><span class="day">今天</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="review" style="margin:14px;background:#f0f4f8;border-color:#dbe3ec">
+        <h3>本周完成度</h3>
+        <p>8 项子任务，完成 5 项 · 中途随时可加新目标</p>
+        <div class="goal-bar" style="margin-top:8px"><i style="width:62%;background:#17a673"></i></div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+function toggleTask(el){
+  const row=el.closest('.task');
+  if(row.classList.contains('done')){
+    row.classList.remove('done');el.classList.remove('on');
+    document.getElementById('todayList').appendChild(row);
+  }else{
+    row.classList.add('done');el.classList.add('on');
+    setTimeout(()=>document.getElementById('doneBody').appendChild(row),250);
+  }
+  refreshCounts();
+}
+function toggleCollapse(el){
+  el.classList.toggle('open');
+  el.nextElementSibling.classList.toggle('show');
+}
+function toggleGoal(el){el.classList.toggle('open')}
+function toggleSub(el){el.classList.toggle('on')}
+function addToday(){
+  const input=document.getElementById('taskInput');
+  const t=input.value.trim();if(!t)return;
+  const imp=document.getElementById('taskImp').value;
+  const row=document.createElement('div');row.className='task';
+  const cls=imp==='高'?'high':imp==='中'?'mid':'low';
+  row.innerHTML='<span class="check" onclick="toggleTask(this)"></span><div class="task-main"><div class="task-title"></div></div><span class="imp '+cls+'">'+imp+'</span><div class="task-actions"><button onclick="rolloverOne(this)">顺延明天</button></div>';
+  row.querySelector('.task-title').textContent=t;
+  document.getElementById('todayList').appendChild(row);
+  input.value='';refreshCounts();
+}
+function rolloverOne(btn){
+  const row=btn.closest('.task');
+  const tag=document.createElement('span');
+  tag.className='goal-tag';tag.style.background='#fff3d6';tag.style.color='#92610a';
+  tag.textContent='已顺延 → 明天';
+  row.querySelector('.task-title').appendChild(tag);
+  btn.closest('.task-actions').remove();
+  refreshCounts();
+}
+function rolloverAll(){
+  document.querySelectorAll('#todayList .task:not(.done)').forEach(row=>{
+    const b=row.querySelector('.task-actions button');
+    if(b)rolloverOne(b);
+  });
+}
+function refreshCounts(){
+  const total=document.querySelectorAll('#todayList .task').length;
+  const undone=document.querySelectorAll('#todayList .task:not(.done)').length;
+  document.getElementById('todayCount').textContent=(total-undone)+'/'+total;
+  document.getElementById('todayBar').style.width=total?Math.round((total-undone)/total*100)+'%':'0%';
+  document.getElementById('doneCount').textContent=document.querySelectorAll('#doneBody .task').length;
+  document.getElementById('reviewText').innerHTML='还有 <b>'+undone+'</b> 件事没完成，可以现在做完，或顺延到明天。';
+}
+function addGoal(){
+  const input=document.getElementById('goalInput');
+  const t=input.value.trim();if(!t)return;
+  const card=document.createElement('div');card.className='goal';
+  card.innerHTML='<div class="goal-head"><span class="goal-dot" style="background:#7c5cbf"></span><span class="goal-title"></span><span class="goal-meta">0/1 子任务</span><span class="arrow">▶</span></div><div class="goal-bar"><i style="width:0%;background:#7c5cbf"></i></div><div class="goal-body"><div class="subtask"><span class="check small" onclick="toggleSub(this)"></span><span class="name">第一条子任务</span><span class="day">未排期</span></div></div>';
+  card.querySelector('.goal-title').textContent=t;
+  card.onclick=()=>card.classList.toggle('open');
+  document.getElementById('goalList').appendChild(card);
+  input.value='';
+}
+refreshCounts();
+</script>
+</body>
+</html>

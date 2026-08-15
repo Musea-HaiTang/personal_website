@@ -1,0 +1,38 @@
+.goal-card{cursor:pointer}
+.goal-card .subs{display:none}
+.goal-card.selected{border-color:var(--teal);box-shadow:0 0 0 1px var(--teal)}
+.tab-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.tab-head h2{font-size:16px;font-weight:700}
+.tab-head .hint{font-size:12px;color:var(--sub)}
+.modal-body{padding:20px 22px}
+.goal-detail-head{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.goal-detail-head .ring{width:54px;height:54px}
+.goal-detail-head h3{font-family:"Songti SC","STSong","SimSun",serif;font-size:19px;font-weight:700}
+.goal-detail-head .meta{font-size:12px;color:var(--sub);margin-top:2px}
+.goal-detail-sub{display:flex;align-items:center;gap:10px;padding:11px 0;border-top:1px dashed var(--line);font-size:14px}
+.goal-detail-sub:first-of-type{border-top:0}
+.goal-detail-sub .name{flex:1}
+.goal-detail-sub .day{font-size:11px;color:var(--sub);background:#f2efe9;border-radius:6px;padding:2px 7px;white-space:nowrap}
+.detail-del{border:0;background:none;color:#b5ada0;cursor:pointer;font-size:16px;padding:2px 7px;border-radius:6px;line-height:1}
+.detail-del:hover{color:var(--red);background:var(--red-soft)}
+.sub-add-row{display:flex;gap:8px;margin-top:14px}
+.sub-add-row input{flex:1;min-width:0;border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13px;outline:none;background:#fff;font-family:inherit}
+.sub-add-row input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(14,124,116,.12)}
+.picker{margin-top:14px;border-top:1px dashed var(--line);padding-top:14px}
+.picker h5{font-size:12px;font-weight:700;color:var(--sub);margin-bottom:6px}
+.pick-goal{font-size:12px;font-weight:700;color:var(--ink);margin:10px 0 6px}
+.pick-goal:first-child{margin-top:0}
+.pick-item{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:99px;padding:6px 12px;font-size:13px;cursor:pointer;margin:0 6px 6px 0;background:#fff;color:var(--ink)}
+.pick-item .dot{width:7px;height:7px;border-radius:50%}
+.pick-item.on{border-color:var(--teal);background:#e7f1ef;color:var(--teal);font-weight:600}
+.drawer-mask{position:fixed;inset:0;background:rgba(43,38,34,.35);z-index:48;display:none}
+.drawer-mask.show{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:420px;max-width:92vw;background:var(--card);border-left:1px solid var(--line);box-shadow:-18px 0 50px rgba(43,38,34,.18);z-index:49;transform:translateX(100%);transition:transform .22s ease;display:flex;flex-direction:column}
+.drawer.show{transform:none}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line)}
+.drawer-head h3{font-family:"Songti SC","STSong","SimSun",serif;font-size:19px;font-weight:700}
+.drawer-body{padding:20px 22px;overflow:auto;flex:1}
+.pane-wrap{display:grid;grid-template-columns:320px 1fr;gap:18px;align-items:start}
+.pane{background:var(--card);border:1px solid var(--line);border-radius:16px;min-height:420px}
+.pane-body{padding:20px 22px}
+@media(max-width:820px){.pane-wrap{grid-template-columns:1fr}}

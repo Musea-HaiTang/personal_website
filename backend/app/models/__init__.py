@@ -3,6 +3,6 @@
 from app.models.diary import DiaryEntry
 from app.models.nav import NavCategory, NavLink
 from app.models.pomodoro import PomodoroSession
-from app.models.tasks import Task
+from app.models.tasks import Subtask, Task, WeeklyPlan
 
-__all__ = ["DiaryEntry", "NavCategory", "NavLink", "PomodoroSession", "Task"]
+__all__ = ["DiaryEntry", "NavCategory", "NavLink", "PomodoroSession", "Subtask", "Task", "WeeklyPlan"]

@@ -13,16 +13,16 @@ const navItems = [
 </script>
 
 <template>
-  <div class="flex min-h-screen">
-    <aside class="w-48 shrink-0 border-r border-gray-200 bg-white px-4 py-6">
-      <h1 class="mb-6 text-lg font-bold">个人网站</h1>
+  <div class="flex min-h-screen bg-paper">
+    <aside class="w-48 shrink-0 border-r border-hairline bg-card px-4 py-6">
+      <h1 class="mb-6 font-serif text-xl font-bold tracking-wide text-ink">个人网站</h1>
       <nav class="flex flex-col gap-1">
         <RouterLink
           v-for="item in navItems"
           :key="item.path"
           :to="item.path"
-          class="rounded px-3 py-2 text-sm hover:bg-gray-100"
-          :class="{ 'bg-blue-50 font-medium text-blue-600': route.path === item.path }"
+          class="rounded px-3 py-2 text-sm text-sub hover:bg-paper-soft hover:text-ink"
+          :class="{ 'bg-teal-soft font-medium text-teal': route.path === item.path }"
         >
           {{ item.label }}
         </RouterLink>

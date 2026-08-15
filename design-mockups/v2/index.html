@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>计划页布局方案 v2</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:#f7f5f1;color:#2b2622;padding:48px 24px}
+.wrap{max-width:960px;margin:0 auto}
+h1{font-family:"Songti SC","STSong","SimSun",serif;font-size:30px;font-weight:700}
+p.lead{color:#7c7468;font-size:14px;margin:10px 0 30px;line-height:1.7}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px}
+.card{background:#fffefc;border:1px solid #e9e3d9;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit;transition:.15s}
+.card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(43,38,34,.1);border-color:#0e7c74}
+.num{font-size:12px;font-weight:800;letter-spacing:.1em;color:#0e7c74}
+h2{font-family:"Songti SC","STSong","SimSun",serif;font-size:18px;font-weight:700}
+.desc{font-size:13px;color:#7c7468;line-height:1.7;flex:1}
+.go{font-size:13px;font-weight:700;color:#0e7c74}
+.note{margin-top:26px;font-size:12px;color:#a69e90;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>计划页布局 v2</h1>
+  <p class="lead">同一套纸感风格（晨间/日间/夜间 + 进度环），按你的意见统一改成：添加按钮 + 弹窗（弹窗里可选「日任务 / 周目标」）、已完成和夜间复盘都是按钮弹出页面、周目标由子任务全完成才算完成。三套只是主布局不同。</p>
+  <div class="cards">
+    <a class="card" href="plan-b1.html" target="_blank">
+      <span class="num">布局 1</span>
+      <h2>三段式工作台</h2>
+      <p class="desc">晨间看本周方向、日间执行今日任务、夜间复盘按钮。完整复刻"先想后做、晚上复盘"的一天。</p>
+      <span class="go">打开预览 →</span>
+    </a>
+    <a class="card" href="plan-b2.html" target="_blank">
+      <span class="num">布局 2</span>
+      <h2>双栏工作台</h2>
+      <p class="desc">今日任务占主屏，本周方向常驻右侧窄栏。适合每天打开只看"今天"，方向瞄一眼即可。</p>
+      <span class="go">打开预览 →</span>
+    </a>
+    <a class="card" href="plan-b3.html" target="_blank">
+      <span class="num">布局 3</span>
+      <h2>标签页工作台</h2>
+      <p class="desc">今日 / 本周方向 / 已完成 / 复盘四个页签，全部按钮驱动，每个页面只干一件事。</p>
+      <span class="go">打开预览 →</span>
+    </a>
+  </div>
+  <p class="note">提示：三套稿内部都可点——勾选子任务/任务会联动进度环和本周完成度；「添加」弹窗里切「周目标」可加新方向；已完成页可点开详情并"重新打开"；复盘页可逐项或全部顺延。周历版（旧方案 C）按你的意见已弃用。</p>
+</div>
+</body>
+</html>

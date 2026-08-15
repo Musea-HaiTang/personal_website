@@ -1,4 +1,4 @@
-<script setup>
+﻿<script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import api from '../api'
 
@@ -115,66 +115,66 @@ onBeforeUnmount(clearTimer)
 <template>
   <div>
     <div class="mb-6 flex items-center justify-between">
-      <h2 class="text-2xl font-bold">番茄钟</h2>
-      <div class="text-sm text-gray-600">
-        今日专注：<span class="font-semibold text-blue-600">{{ summary.count }}</span> 次 ·
-        <span class="font-semibold text-blue-600">{{ formatDuration(summary.total_seconds) }}</span>
+      <h2 class="font-serif text-2xl font-bold text-ink">番茄钟</h2>
+      <div class="text-sm text-sub">
+        今日专注：<span class="font-semibold text-teal">{{ summary.count }}</span> 次 ·
+        <span class="font-semibold text-teal">{{ formatDuration(summary.total_seconds) }}</span>
       </div>
     </div>
 
-    <p v-if="error" class="mb-4 rounded bg-red-50 px-3 py-2 text-sm text-red-600">{{ error }}</p>
+    <p v-if="error" class="mb-4 rounded bg-red-soft px-3 py-2 text-sm text-red">{{ error }}</p>
 
-    <div class="mx-auto max-w-md rounded-lg border border-gray-200 bg-white p-8 text-center shadow-sm">
+    <div class="mx-auto max-w-md rounded-lg border border-hairline bg-card p-8 text-center shadow-sm">
       <div class="mb-4 flex justify-center gap-2">
         <button
           class="rounded px-4 py-1.5 text-sm"
-          :class="mode === 'focus' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600'"
+          :class="mode === 'focus' ? 'bg-teal text-white' : 'bg-paper-soft text-sub'"
           @click="switchMode('focus')"
         >
           专注
         </button>
         <button
           class="rounded px-4 py-1.5 text-sm"
-          :class="mode === 'break' ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-600'"
+          :class="mode === 'break' ? 'bg-green text-white' : 'bg-paper-soft text-sub'"
           @click="switchMode('break')"
         >
           休息
         </button>
       </div>
 
-      <p class="mb-2 text-sm text-gray-500">{{ modeLabel }}</p>
-      <p class="mb-6 text-6xl font-bold tabular-nums" :class="mode === 'focus' ? 'text-blue-600' : 'text-emerald-600'">
+      <p class="mb-2 text-sm text-sub">{{ modeLabel }}</p>
+      <p class="mb-6 text-6xl font-bold tabular-nums" :class="mode === 'focus' ? 'text-teal' : 'text-green'">
         {{ displayTime }}
       </p>
 
-      <div v-if="state === 'idle'" class="mb-6 flex items-center justify-center gap-3 text-sm text-gray-600">
-        <button class="h-8 w-8 rounded-full border border-gray-300 hover:bg-gray-50" @click="adjustMinutes(-1)">−</button>
+      <div v-if="state === 'idle'" class="mb-6 flex items-center justify-center gap-3 text-sm text-sub">
+        <button class="h-8 w-8 rounded-full border border-hairline hover:bg-paper-soft" @click="adjustMinutes(-1)">−</button>
         <span>{{ mode === 'focus' ? focusMinutes : breakMinutes }} 分钟</span>
-        <button class="h-8 w-8 rounded-full border border-gray-300 hover:bg-gray-50" @click="adjustMinutes(1)">+</button>
+        <button class="h-8 w-8 rounded-full border border-hairline hover:bg-paper-soft" @click="adjustMinutes(1)">+</button>
       </div>
-      <div v-else class="mb-6 text-xs text-gray-400">
+      <div v-else class="mb-6 text-xs text-sub">
         {{ mode === 'focus' ? focusMinutes : breakMinutes }} 分钟 / 已调整不可改
       </div>
 
       <div class="flex justify-center gap-3">
         <button
           v-if="state !== 'running'"
-          class="rounded bg-blue-600 px-6 py-2 text-white hover:bg-blue-700"
+          class="rounded bg-teal px-6 py-2 text-white hover:bg-teal-dark"
           @click="start"
         >
           {{ state === 'paused' ? '继续' : '开始' }}
         </button>
-        <button v-else class="rounded bg-amber-500 px-6 py-2 text-white hover:bg-amber-600" @click="pause">暂停</button>
+        <button v-else class="rounded bg-amber px-6 py-2 text-white hover:bg-amber-dark" @click="pause">暂停</button>
         <button
           v-if="state !== 'idle'"
-          class="rounded border border-gray-300 px-6 py-2 text-gray-600 hover:bg-gray-50"
+          class="rounded border border-hairline px-6 py-2 text-sub hover:bg-paper-soft"
           @click="reset"
         >
           重置
         </button>
         <button
           v-if="state !== 'idle' && mode === 'focus'"
-          class="rounded border border-emerald-300 px-6 py-2 text-emerald-600 hover:bg-emerald-50"
+          class="rounded border border-green px-6 py-2 text-green hover:bg-green-soft"
           @click="complete"
         >
           完成
@@ -182,7 +182,7 @@ onBeforeUnmount(clearTimer)
       </div>
     </div>
 
-    <p class="mt-4 text-center text-xs text-gray-400">
+    <p class="mt-4 text-center text-xs text-sub">
       专注结束后自动记录本次时长并切换到休息；绑定计划任务将在后续版本提供。
     </p>
   </div>
