@@ -22,7 +22,6 @@ export const usePomodoroStore = defineStore('pomodoro', {
     count: 0,
     totalSeconds: 0,
     sessions: [],
-    loaded: false,
     error: '',
     toastMsg: '',
     toastSeq: 0
@@ -33,9 +32,6 @@ export const usePomodoroStore = defineStore('pomodoro', {
     },
     modeLabel() {
       return MODES[this.mode].label
-    },
-    modeHex() {
-      return MODES[this.mode].hex
     },
     modeMin() {
       return MODES[this.mode].sec / 60
@@ -66,7 +62,6 @@ export const usePomodoroStore = defineStore('pomodoro', {
         this.count = data.count
         this.totalSeconds = data.total_seconds
         this.sessions = data.sessions
-        this.loaded = true
       } catch (e) {
         this.error = e.response?.data?.detail || '加载今日统计失败'
       }
