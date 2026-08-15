@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄钟原型 · PROTOTYPE</title>
+<!-- 原型问题：游戏化种植的番茄钟页应该长什么样？
+     三个结构变体（A 盆栽特写 / B 藤蔓圆环 / C 今日小园），?variant= 切换。
+     植株为内联 SVG 现画，无外部图片素材。PROTOTYPE —— 可丢弃，勿当生产代码。 -->
+<style>
+:root{
+  --paper:#f7f5f1; --paper-soft:#f4f1ea; --card:#fffefc; --hairline:#e9e3d9;
+  --ink:#2b2622; --sub:#7c7468;
+  --teal:#0e7c74; --teal-dark:#0a6a63; --teal-soft:#e7f1ef;
+  --green:#3d9970; --green-soft:#e7f1ec;
+  --amber:#b7791f; --amber-soft:#faf1dd;
+  --red:#c4533a; --red-soft:#f9ebe5;
+  --serif:"Songti SC","STSong","SimSun",serif;
+  --sans:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);min-height:100vh;padding:30px 0 96px}
+.variant{display:none}
+.variant.active{display:block}
+.page-head{max-width:980px;margin:0 auto 24px;padding:0 20px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+h1{font-size:30px;color:var(--ink)}
+.sub{color:var(--sub);font-size:13px;margin-top:4px}
+.small{font-size:12px}
+.today-stats{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:10px 16px;font-size:14px;color:var(--sub)}
+.today-stats b{color:var(--teal);font-size:18px}
+.serif{font-family:var(--serif)}
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:18px;box-shadow:0 6px 24px rgba(43,38,34,.06)}
+.modetabs{display:flex;justify-content:center;gap:4px;background:var(--paper-soft);border:1px solid var(--hairline);border-radius:999px;padding:4px;margin:0 auto 14px;width:max-content}
+.modebtn{border:0;background:transparent;padding:7px 18px;border-radius:999px;font-size:14px;color:var(--sub);cursor:pointer;transition:.2s}
+.modebtn:hover{color:var(--ink)}
+.modebtn.active[data-mode="focus"]{background:var(--teal);color:#fff}
+.modebtn.active[data-mode="short"]{background:var(--amber);color:#fff}
+.modebtn.active[data-mode="long"]{background:var(--green);color:#fff}
+.t-time{font-family:var(--serif);font-size:60px;font-weight:700;letter-spacing:.02em;transition:color .4s;line-height:1.05}
+.t-time.sm{font-size:40px}
+.t-mins{font-size:14px;color:var(--sub)}
+.t-mins.xs{font-size:12px}
+.variant[data-mode="focus"] .t-time{color:var(--teal)}
+.variant[data-mode="short"] .t-time{color:var(--amber)}
+.variant[data-mode="long"] .t-time{color:var(--green)}
+.controls{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.controls.column{flex-direction:column;align-items:center}
+.btn{font-family:var(--sans);font-size:15px;padding:9px 22px;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:.15s}
+.btn.primary{background:var(--teal);color:#fff}
+.btn.primary:hover{background:var(--teal-dark)}
+.btn.primary.warn{background:var(--amber)}
+.btn.green{background:var(--green);color:#fff}
+.btn.ghost{border-color:var(--hairline);color:var(--sub);background:var(--card)}
+.btn.ghost:hover{background:var(--paper-soft)}
+.btn.mini{font-size:12px;padding:5px 12px;border-color:var(--hairline);color:var(--sub);background:var(--card);border-radius:999px}
+.adjrow{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.dots{display:flex;align-items:center;gap:8px;justify-content:center;margin-top:16px}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--hairline);background:transparent;transition:.3s}
+.dot.filled{background:var(--teal);border-color:var(--teal)}
+.dot.current{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft);animation:pulse 1.6s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 3px var(--teal-soft)}50%{box-shadow:0 0 0 7px var(--teal-soft)}}
+.dotlabel{font-size:12px;color:var(--sub);margin-left:4px}
+.logs{display:flex;flex-direction:column;gap:6px}
+.logrow{display:flex;align-items:center;gap:10px;font-size:14px;padding:8px 10px;border:1px dashed var(--hairline);border-radius:10px}
+.logt{font-family:var(--mono);font-size:12px;color:var(--sub)}
+.logdot{width:10px;height:10px;border-radius:50%;background:var(--red);flex:none}
+.logrow.break .logdot{background:var(--amber)}
+.logl{color:var(--ink)}
+/* plant */
+.leaf{opacity:0;transition:opacity .9s ease}
+.leaf.on{opacity:1}
+.fruit{transition:transform .3s}
+.fruit.pop{animation:pop .7s ease}
+@keyframes pop{0%{transform:scale(0)}55%{transform:scale(1.28)}100%{transform:scale(1)}}
+.sway{animation:sway 5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.8deg)}}
+/* ring */
+.ring{position:relative;width:300px;height:300px;margin:6px auto}
+.ring-sm{width:180px;height:180px}
+.ring svg{display:block;width:100%;height:100%}
+.ring-bg{fill:none;stroke:var(--hairline);stroke-width:14}
+.ring-prog{fill:none;stroke:var(--teal);stroke-width:14;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s linear, stroke .4s}
+.ring-vine{fill:none;stroke:#c9c1b2;stroke-dasharray:4 10;stroke-width:2}
+.ring-time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+/* variant A */
+.pot-wrap{max-width:540px;margin:0 auto;padding:0 20px;display:flex;flex-direction:column;align-items:center;gap:18px}
+.pot-card{width:100%;text-align:center;padding:24px 28px 26px}
+.pot-card .plant svg{width:min(100%,340px);height:auto}
+.harvest{width:100%;padding:18px 22px}
+.harvest h3{font-size:17px;margin-bottom:10px}
+/* variant B */
+.b-grid{max-width:900px;margin:0 auto;padding:0 20px;display:grid;grid-template-columns:minmax(360px,1fr) minmax(280px,380px);gap:22px;align-items:start}
+.ring-card{text-align:center;padding:28px 24px 26px}
+.ring-card .modetabs{margin-bottom:10px}
+.log-card{padding:18px 22px}
+.log-card h3{font-size:17px;margin-bottom:4px}
+.log-card .logs{margin-top:12px}
+/* variant C */
+.c-layout{max-width:1000px;margin:0 auto;padding:0 20px;display:grid;grid-template-columns:300px 1fr;gap:22px;align-items:start}
+.c-timer{text-align:center;padding:20px 16px 18px;position:sticky;top:16px}
+.c-timer .modetabs{margin-bottom:12px}
+.garden{min-width:0}
+.garden-head{margin-bottom:14px}
+.garden-head h3{font-size:18px}
+.plots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.plot{border:1px solid var(--hairline);background:var(--card);border-radius:14px;padding:10px 8px;min-height:205px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+.plot.current{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+.plot.empty{border-style:dashed;background:transparent}
+.p-plant svg{width:100%;height:auto}
+.p-soil{width:64%;height:10px;margin:58px auto 0;background:#8a6a4f;opacity:.35;border-radius:999px}
+.p-time{font-size:12px;color:var(--sub);margin-top:6px}
+/* prototype chrome */
+.badge{position:fixed;top:0;right:0;background:var(--amber);color:#fff;font-size:11px;letter-spacing:.12em;padding:5px 12px;border-radius:0 0 0 10px;z-index:60}
+.switcher{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;background:var(--ink);color:#fff;border-radius:999px;padding:6px 10px;display:flex;align-items:center;gap:10px;z-index:60;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:13px}
+.switcher button{background:none;border:0;color:#fff;font-size:18px;cursor:pointer;padding:0 6px}
+.switcher span{min-width:130px;text-align:center}
+.state-line{position:fixed;left:50%;transform:translateX(-50%);bottom:60px;background:rgba(255,254,252,.94);border:1px solid var(--hairline);border-radius:8px;padding:4px 12px;font-family:var(--mono);font-size:11px;color:var(--sub);z-index:60;white-space:nowrap;max-width:92vw;overflow:hidden;text-overflow:ellipsis}
+#toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-14px);background:var(--card);border:1px solid var(--hairline);box-shadow:0 8px 24px rgba(43,38,34,.14);border-radius:999px;padding:10px 20px;font-size:14px;opacity:0;transition:.25s;z-index:70;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media(max-width:900px){
+  .b-grid,.c-layout{grid-template-columns:1fr}
+  .c-timer{position:static}
+}
+</style>
+</head>
+<body>
+<div class="badge">PROTOTYPE · 可丢弃</div>
+<div id="toast"></div>
+
+<!-- 变体 A：盆栽特写 —— 一株番茄是页面主角 -->
+<section class="variant active" data-variant="A" data-mode="focus">
+  <header class="page-head">
+    <div>
+      <h1 class="serif">番茄钟</h1>
+      <p class="sub">一株番茄陪你完成今天的专注</p>
+    </div>
+    <div class="today-stats">今日 <b id="aCount">0</b> 个番茄 · <b id="aTotal">0</b> 分钟</div>
+  </header>
+  <div class="pot-wrap">
+    <div class="modetabs">
+      <button class="modebtn" data-act="mode" data-mode="focus">专注</button>
+      <button class="modebtn" data-act="mode" data-mode="short">短休</button>
+      <button class="modebtn" data-act="mode" data-mode="long">长休</button>
+    </div>
+    <div class="card pot-card">
+      <div class="plant" id="aPlant"></div>
+      <div class="t-time">25:00</div>
+      <div class="t-mins">25 分钟</div>
+      <div class="dots"></div>
+      <div class="controls">
+        <button class="btn primary" data-act="start">开始</button>
+        <button class="btn ghost" data-act="reset" style="visibility:hidden">重置</button>
+        <button class="btn green" data-act="done" style="visibility:hidden">完成</button>
+      </div>
+      <div class="adjrow">
+        <button class="btn mini" data-act="adj" data-delta="-1">−1 分钟</button>
+        <button class="btn mini" data-act="adj" data-delta="1">+1 分钟</button>
+      </div>
+    </div>
+    <div class="card harvest">
+      <h3 class="serif">今日收获</h3>
+      <div class="logs" id="aLogs"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 变体 B：藤蔓圆环 —— 进度环是主角，今日节奏在右侧 -->
+<section class="variant" data-variant="B" data-mode="focus">
+  <header class="page-head">
+    <div>
+      <h1 class="serif">番茄钟</h1>
+      <p class="sub">藤蔓绕着时间生长</p>
+    </div>
+    <div class="today-stats">今日 <b id="bCount">0</b> 个番茄 · <b id="bTotal">0</b> 分钟</div>
+  </header>
+  <div class="b-grid">
+    <div class="card ring-card">
+      <div class="modetabs">
+        <button class="modebtn" data-act="mode" data-mode="focus">专注</button>
+        <button class="modebtn" data-act="mode" data-mode="short">短休</button>
+        <button class="modebtn" data-act="mode" data-mode="long">长休</button>
+      </div>
+      <div class="ring">
+        <svg viewBox="0 0 320 320" width="300" height="300">
+          <circle class="ring-bg" cx="160" cy="160" r="128"/>
+          <circle class="ring-prog" id="bProg" cx="160" cy="160" r="128"/>
+          <circle class="ring-vine" cx="160" cy="160" r="144"/>
+          <g transform="translate(160,16) rotate(8)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+          <g transform="translate(304,160) rotate(98)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+          <g transform="translate(160,304) rotate(188)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+          <g transform="translate(16,160) rotate(278)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+        </svg>
+        <div class="ring-time">
+          <span class="t-time">25:00</span>
+          <span class="t-mins">25 分钟</span>
+        </div>
+      </div>
+      <div class="dots"></div>
+      <div class="controls">
+        <button class="btn primary" data-act="start">开始</button>
+        <button class="btn ghost" data-act="reset" style="visibility:hidden">重置</button>
+        <button class="btn green" data-act="done" style="visibility:hidden">完成</button>
+      </div>
+      <div class="adjrow">
+        <button class="btn mini" data-act="adj" data-delta="-1">−1 分钟</button>
+        <button class="btn mini" data-act="adj" data-delta="1">+1 分钟</button>
+      </div>
+    </div>
+    <div class="card log-card">
+      <h3 class="serif">今日节奏</h3>
+      <p class="sub small">完成的番茄会落在时间线上</p>
+      <div class="logs" id="bLogs"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 变体 C：今日小园 —— 积累是主角，每完成一个番茄种下一株 -->
+<section class="variant" data-variant="C" data-mode="focus">
+  <header class="page-head">
+    <div>
+      <h1 class="serif">番茄钟</h1>
+      <p class="sub">完成一个番茄，种下一株</p>
+    </div>
+    <div class="today-stats">今日 <b id="cCount">0</b> 个番茄 · <b id="cTotal">0</b> 分钟</div>
+  </header>
+  <div class="c-layout">
+    <aside class="card c-timer">
+      <div class="ring ring-sm">
+        <svg viewBox="0 0 200 200">
+          <circle class="ring-bg" cx="100" cy="100" r="76"/>
+          <circle class="ring-prog" id="cProg" cx="100" cy="100" r="76"/>
+        </svg>
+        <div class="ring-time">
+          <span class="t-time sm">25:00</span>
+          <span class="t-mins xs">25 分钟</span>
+        </div>
+      </div>
+      <div class="modetabs">
+        <button class="modebtn" data-act="mode" data-mode="focus">专注</button>
+        <button class="modebtn" data-act="mode" data-mode="short">短休</button>
+        <button class="modebtn" data-act="mode" data-mode="long">长休</button>
+      </div>
+      <div class="controls column">
+        <button class="btn primary" data-act="start">开始</button>
+        <div style="display:flex;gap:8px">
+          <button class="btn ghost" data-act="reset" style="visibility:hidden">重置</button>
+          <button class="btn green" data-act="done" style="visibility:hidden">完成</button>
+        </div>
+      </div>
+      <div class="adjrow">
+        <button class="btn mini" data-act="adj" data-delta="-1">−1 分钟</button>
+        <button class="btn mini" data-act="adj" data-delta="1">+1 分钟</button>
+      </div>
+      <div class="dots"></div>
+    </aside>
+    <main class="garden">
+      <div class="garden-head">
+        <h3 class="serif">今日小园</h3>
+        <p class="sub small">每一格都是一段认真花掉的时间</p>
+      </div>
+      <div class="plots" id="cPlots"></div>
+    </main>
+  </div>
+</section>
+
+<div class="state-line" id="stateLine"></div>
+<div class="switcher">
+  <button id="prev" title="上一个变体">‹</button>
+  <span id="vLabel">A — 盆栽特写</span>
+  <button id="next" title="下一个变体">›</button>
+</div>
+
+<script>
+const MODES={
+  focus:{label:'专注',sec:25*60,color:'teal'},
+  short:{label:'短休',sec:5*60,color:'amber'},
+  long:{label:'长休',sec:15*60,color:'green'}
+};
+const S={
+  variant:'A',
+  mode:'focus',
+  running:false,
+  paused:false,
+  total:MODES.focus.sec,
+  remaining:MODES.focus.sec,
+  cycle:3,
+  done:[{t:'09:00',m:'专注'},{t:'09:45',m:'专注'},{t:'10:30',m:'专注'}],
+  logs:[
+    {t:'09:00',label:'专注 25 分钟'},
+    {t:'09:35',label:'休息 5 分钟'},
+    {t:'09:45',label:'专注 25 分钟'},
+    {t:'10:20',label:'休息 5 分钟'},
+    {t:'10:30',label:'专注 25 分钟'}
+  ]
+};
+const VARIANTS={A:'盆栽特写',B:'藤蔓圆环',C:'今日小园'};
+const KEYS=Object.keys(VARIANTS);
+let timer=null;
+
+function fmt(s){
+  s=Math.max(0,s);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function fmtMin(s){ return s>=60 ? Math.round(s/60)+' 分钟' : s+' 秒'; }
+function lerp(a,b,t){
+  t=Math.min(1,Math.max(0,t));
+  const A=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)];
+  const B=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)];
+  return 'rgb('+A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')+')';
+}
+function leafPath(){
+  return 'M0,0 C8,-7 20,-6 30,0 C20,6 8,7 0,0 Z';
+}
+function fruitSVG(x,y,r,fill,cls){
+  return '<g class="fruit '+(cls||'')+'" style="transform-origin:'+x+'px '+y+'px">'
+    + '<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+fill+'" stroke="'+fill+'" stroke-opacity=".35" stroke-width="1"/>'
+    + '<path d="M'+x+','+(y-r-3)+' L'+(x-4)+','+(y-r+1)+' M'+x+','+(y-r-3)+' L'+(x+4)+','+(y-r+1)+' M'+x+','+(y-r-3)+' L'+x+','+(y-r+1)+'" stroke="#5f8e4c" stroke-width="2" fill="none" stroke-linecap="round"/>'
+    + '</g>';
+}
+function plantSVG(ripe,grow){
+  const spots=[[124,98],[84,116],[144,132],[72,152],[130,174],[96,192]];
+  const leaves=[
+    {t:.12,x:96,y:188,r:-35},{t:.25,x:124,y:174,r:30},
+    {t:.4,x:88,y:160,r:-42},{t:.55,x:126,y:146,r:25},
+    {t:.7,x:96,y:132,r:-30},{t:.85,x:120,y:122,r:18}
+  ];
+  let parts='';
+  parts+='<path d="M72,206 L148,206 L139,238 L81,238 Z" fill="#f0e2cf" stroke="#dcc9ad" stroke-width="2"/>';
+  parts+='<rect x="64" y="198" width="92" height="9" rx="3" fill="#f0e2cf" stroke="#dcc9ad" stroke-width="2"/>';
+  parts+='<ellipse cx="110" cy="204" rx="44" ry="8" fill="#8a6a4f"/>';
+  parts+='<text x="110" y="229" text-anchor="middle" font-size="10" fill="#a68b6d" letter-spacing="2">POMO</text>';
+  parts+='<g class="sway" style="transform-origin:110px 204px">';
+  parts+='<path d="M110,204 C110,178 112,150 110,120" stroke="#5f8e4c" stroke-width="5" fill="none" stroke-linecap="round"/>';
+  leaves.forEach((L,i)=>{
+    parts+='<g class="leaf '+(grow>=L.t?'on':'')+'" transform="translate('+L.x+','+L.y+') rotate('+L.r+') scale(0.9)">'
+      +'<path d="'+leafPath()+'" fill="'+(i%2?'#7fb069':'#6f9e4f')+'" opacity=".92"/>'
+      +'<path d="M0,0 L30,0" stroke="#5f8e4c" stroke-width="1" opacity=".6"/>'
+      +'</g>';
+  });
+  for(let i=0;i<Math.min(ripe,spots.length);i++){
+    parts+=fruitSVG(spots[i][0],spots[i][1],12,'#c4533a','');
+  }
+  if(grow>0.45){
+    const r=5+(grow-0.45)*12;
+    parts+=fruitSVG(98,104,r,lerp('#6f9e4f','#c4533a',(grow-0.45)/0.55),'grow');
+  }
+  parts+='</g>';
+  return '<svg viewBox="0 0 220 244" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="番茄植株">'+parts+'</svg>';
+}
+function logRow(d){
+  const brk=d.label.indexOf('休')>=0;
+  return '<div class="logrow'+(brk?' break':'')+'"><span class="logt">'+d.t+'</span><span class="logdot"></span><span class="logl">'+d.label+'</span></div>';
+}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;
+  el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(function(){el.classList.remove('show');},2200);
+}
+function render(){
+  const p=S.remaining>0 ? 1-S.remaining/S.total : 1;
+  const t=fmt(S.remaining);
+  const totalMin=Math.round(S.done.reduce(function(a,d){return a+25*60;},0)/60);
+  document.querySelectorAll('.variant').forEach(function(sec){
+    sec.classList.toggle('active',sec.dataset.variant===S.variant);
+    sec.dataset.mode=S.mode;
+  });
+  document.querySelectorAll('[data-act="mode"]').forEach(function(btn){
+    btn.classList.toggle('active',btn.dataset.mode===S.mode);
+  });
+  document.querySelectorAll('.t-time').forEach(function(el){el.textContent=t;});
+  document.querySelectorAll('.t-mins').forEach(function(el){el.textContent=MODES[S.mode].sec/60+' 分钟';});
+  document.querySelectorAll('[data-act="start"]').forEach(function(b){
+    b.textContent=S.running?'暂停':(S.paused?'继续':'开始');
+    b.classList.toggle('warn',S.running);
+  });
+  document.querySelectorAll('[data-act="reset"]').forEach(function(b){
+    b.style.visibility=(S.running||S.paused)?'visible':'hidden';
+  });
+  document.querySelectorAll('[data-act="done"]').forEach(function(b){
+    b.style.visibility=(S.mode==='focus'&&(S.running||S.paused))?'visible':'hidden';
+  });
+  document.querySelectorAll('.dots').forEach(function(d){
+    let h='';
+    for(let i=1;i<=4;i++){
+      const cls=i<S.cycle?'filled':(i===S.cycle?'current':'');
+      h+='<span class="dot '+cls+'"></span>';
+    }
+    d.innerHTML=h+'<span class="dotlabel">第 '+Math.min(S.cycle,4)+' / 4 个番茄</span>';
+  });
+  const setRing=function(id,R){
+    const el=document.getElementById(id);
+    if(!el)return;
+    const C=2*Math.PI*R;
+    el.style.strokeDasharray=C;
+    el.style.strokeDashoffset=C*(1-p);
+    el.style.stroke='var(--'+MODES[S.mode].color+')';
+  };
+  setRing('bProg',128);
+  setRing('cProg',76);
+  const aPlant=document.getElementById('aPlant');
+  if(aPlant)aPlant.innerHTML=plantSVG(S.done.length,p);
+  const logs=document.getElementById('aLogs');
+  if(logs)logs.innerHTML=S.logs.slice().reverse().map(logRow).join('');
+  const logsB=document.getElementById('bLogs');
+  if(logsB)logsB.innerHTML=S.logs.slice().reverse().map(logRow).join('');
+  const plots=document.getElementById('cPlots');
+  if(plots){
+    let h='';
+    for(let i=0;i<8;i++){
+      if(i<S.done.length){
+        h+='<div class="plot"><div class="p-plant">'+plantSVG(1,1)+'</div><div class="p-time">'+S.done[i].t+' · '+S.done[i].m+'</div></div>';
+      }else if(i===S.done.length){
+        h+='<div class="plot current"><div class="p-plant" id="cCurrent"></div><div class="p-time">正在生长…</div></div>';
+      }else{
+        h+='<div class="plot empty"><div class="p-soil"></div><div class="p-time">待种植</div></div>';
+      }
+    }
+    plots.innerHTML=h;
+    const cur=document.getElementById('cCurrent');
+    if(cur)cur.innerHTML=plantSVG(0,p);
+  }
+  ['aCount','bCount','cCount'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el)el.textContent=S.done.length;
+  });
+  ['aTotal','bTotal','cTotal'].forEach(function(id){
+    const el=document.getElementById(id);
+    if(el)el.textContent=totalMin;
+  });
+  document.getElementById('stateLine').textContent=
+    'variant='+S.variant+' · '+MODES[S.mode].label+' · '+(S.running?'计时中':(S.paused?'已暂停':'未开始'))
+    +' · '+t+' · 第'+Math.min(S.cycle,4)+'/4 · 今日'+S.done.length+'个'+totalMin+'分钟';
+  document.getElementById('vLabel').textContent=S.variant+' — '+VARIANTS[S.variant];
+}
+function startPause(){
+  if(S.running){
+    clearInterval(timer);timer=null;
+    S.running=false;S.paused=true;
+  }else{
+    S.running=true;S.paused=false;
+    timer=setInterval(tick,1000);
+  }
+  render();
+}
+function tick(){
+  S.remaining--;
+  if(S.remaining<=0){complete();}
+  else{render();}
+}
+function reset(){
+  clearInterval(timer);timer=null;
+  S.running=false;S.paused=false;
+  S.remaining=S.total;
+  render();
+}
+function adjust(d){
+  if(S.running||S.paused)return;
+  const m=Math.max(1,Math.min(S.mode==='focus'?120:60,S.total/60+d));
+  S.total=m*60;S.remaining=m*60;
+  render();
+}
+function setMode(m){
+  clearInterval(timer);timer=null;
+  S.mode=m;S.running=false;S.paused=false;
+  S.total=MODES[m].sec;S.remaining=S.total;
+  render();
+}
+function nowHM(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function complete(){
+  clearInterval(timer);timer=null;
+  const t=nowHM();
+  if(S.mode==='focus'){
+    const elapsed=S.remaining>0?(S.total-S.remaining):S.total;
+    const sec=Math.max(1,Math.round(elapsed));
+    S.done.push({t:t,m:'专注'});
+    S.logs.push({t:t,label:'专注 '+fmtMin(sec)});
+    toast('收获一颗番茄 🍅');
+    if(S.cycle>=4){S.cycle=1;S.mode='long';}
+    else{S.cycle++;S.mode='short';}
+  }else{
+    S.logs.push({t:t,label:MODES[S.mode].label+' '+S.total/60+' 分钟'});
+    S.mode='focus';
+  }
+  S.total=MODES[S.mode].sec;S.remaining=S.total;
+  S.running=false;S.paused=false;
+  render();
+  const sec=document.querySelector('.variant.active');
+  const fruits=sec?sec.querySelectorAll('.fruit:not(.grow)'):[];
+  if(fruits.length)fruits[fruits.length-1].classList.add('pop');
+}
+function setVariant(v){
+  S.variant=v;
+  history.replaceState(null,'','?variant='+v);
+  render();
+}
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('[data-act]');
+  if(!btn)return;
+  const act=btn.dataset.act;
+  if(act==='mode')setMode(btn.dataset.mode);
+  else if(act==='start')startPause();
+  else if(act==='reset')reset();
+  else if(act==='done')complete();
+  else if(act==='adj')adjust(parseInt(btn.dataset.delta,10));
+});
+document.getElementById('prev').addEventListener('click',function(){
+  const i=(KEYS.indexOf(S.variant)+KEYS.length-1)%KEYS.length;
+  setVariant(KEYS[i]);
+});
+document.getElementById('next').addEventListener('click',function(){
+  const i=(KEYS.indexOf(S.variant)+1)%KEYS.length;
+  setVariant(KEYS[i]);
+});
+document.addEventListener('keydown',function(e){
+  if(e.target.closest('input,textarea,[contenteditable]'))return;
+  if(e.key==='ArrowLeft')document.getElementById('prev').click();
+  else if(e.key==='ArrowRight')document.getElementById('next').click();
+});
+const params=new URLSearchParams(location.search);
+const initial=params.get('variant');
+if(initial&&VARIANTS[initial])S.variant=initial;
+if(params.get('demo')==='1')S.remaining=Math.round(S.total*0.62);
+render();
+</script>
+</body>
+</html>

@@ -1,6 +1,8 @@
 <script setup>
 import { useRoute } from 'vue-router'
 
+import FloatingTimer from './components/FloatingTimer.vue'
+
 const route = useRoute()
 
 const navItems = [
@@ -31,5 +33,6 @@ const navItems = [
     <main class="flex-1 p-8">
       <RouterView />
     </main>
+    <FloatingTimer />
   </div>
 </template>

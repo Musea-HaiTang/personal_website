@@ -16,3 +16,6 @@ backend/data/
 .idea/
 .vscode/
 *.swp
+
+# 原型截图（design-mockups 内保留 HTML 原型，不入库截图）
+design-mockups/pomodoro/shots/

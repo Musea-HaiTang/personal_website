@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄园 · 占位原型 · PROTOTYPE</title>
+<!-- 番茄园独立页面（占位）：每完成一个番茄种下一株。
+     真实美术资源待定稿（见讨论），此页为布局原型。PROTOTYPE —— 可丢弃。 -->
+<style>
+:root{
+  --paper:#f7f5f1; --paper-soft:#f4f1ea; --card:#fffefc; --hairline:#e9e3d9;
+  --ink:#2b2622; --sub:#7c7468;
+  --teal:#0e7c74; --teal-dark:#0a6a63; --teal-soft:#e7f1ef;
+  --green:#3d9970; --green-soft:#e7f1ec;
+  --amber:#b7791f; --red:#c4533a;
+  --serif:"Songti SC","STSong","SimSun",serif;
+  --sans:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);min-height:100vh;padding:30px 0 60px}
+.page-head{max-width:1000px;margin:0 auto 20px;padding:0 20px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+h1{font-size:30px;color:var(--ink)}
+.sub{color:var(--sub);font-size:13px;margin-top:4px}
+.small{font-size:12px}
+.serif{font-family:var(--serif)}
+.back-link{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:10px 16px;font-size:14px;color:var(--teal);text-decoration:none;font-weight:600;transition:.15s}
+.back-link:hover{border-color:var(--teal)}
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:18px;box-shadow:0 6px 24px rgba(43,38,34,.06)}
+.c-layout{max-width:1000px;margin:0 auto;padding:0 20px}
+.garden-head{margin-bottom:14px}
+.garden-head h3{font-size:18px}
+.note{display:inline-block;margin-top:8px;background:var(--amber-soft, #faf1dd);border:1px dashed #d9b36a;color:#8a5a12;font-size:12px;padding:4px 10px;border-radius:8px}
+.plots{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px}
+.plot{border:1px solid var(--hairline);background:var(--card);border-radius:14px;padding:10px 8px;min-height:205px;display:flex;flex-direction:column;align-items:center;justify-content:space-between}
+.plot.current{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+.plot.empty{border-style:dashed;background:transparent}
+.p-plant svg{width:100%;height:auto}
+.p-soil{width:64%;height:10px;margin:58px auto 0;background:#8a6a4f;opacity:.35;border-radius:999px}
+.p-time{font-size:12px;color:var(--sub);margin-top:6px}
+.badge{position:fixed;top:0;right:0;background:var(--amber);color:#fff;font-size:11px;letter-spacing:.12em;padding:5px 12px;border-radius:0 0 0 10px;z-index:60}
+.leaf{opacity:0;transition:opacity .9s ease}
+.leaf.on{opacity:1}
+.sway{animation:sway 5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.8deg)}}
+</style>
+</head>
+<body>
+<div class="badge">PROTOTYPE · 可丢弃</div>
+<header class="page-head">
+  <div>
+    <h1 class="serif">番茄园</h1>
+    <p class="sub">每一格都是一段认真花掉的时间</p>
+  </div>
+  <a class="back-link" href="timer.html">← 返回计时器</a>
+</header>
+<main class="c-layout">
+  <div class="garden-head">
+    <h3 class="serif">今日小园</h3>
+    <p class="sub small">完成一个番茄，种下一株</p>
+    <span class="note">占位页面：植株为临时 SVG 占位，真实美术资源待定稿后替换</span>
+  </div>
+  <div class="plots" id="cPlots"></div>
+</main>
+<script>
+const DONE=[{t:'09:00'},{t:'09:45'},{t:'10:30'}];
+function leafPath(){return 'M0,0 C8,-7 20,-6 30,0 C20,6 8,7 0,0 Z';}
+function fruitSVG(x,y,r,fill){
+  return '<g class="fruit" style="transform-origin:'+x+'px '+y+'px">'
+    +'<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+fill+'" stroke="'+fill+'" stroke-opacity=".35" stroke-width="1"/>'
+    +'<path d="M'+x+','+(y-r-3)+' L'+(x-4)+','+(y-r+1)+' M'+x+','+(y-r-3)+' L'+(x+4)+','+(y-r+1)+' M'+x+','+(y-r-3)+' L'+x+','+(y-r+1)+'" stroke="#5f8e4c" stroke-width="2" fill="none" stroke-linecap="round"/>'
+    +'</g>';
+}
+function lerp(a,b,t){
+  t=Math.min(1,Math.max(0,t));
+  const A=[parseInt(a.slice(1,3),16),parseInt(a.slice(3,5),16),parseInt(a.slice(5,7),16)];
+  const B=[parseInt(b.slice(1,3),16),parseInt(b.slice(3,5),16),parseInt(b.slice(5,7),16)];
+  return 'rgb('+A.map(function(v,i){return Math.round(v+(B[i]-v)*t);}).join(',')+')';
+}
+function plantSVG(ripe,grow){
+  const spots=[[124,98],[84,116],[144,132],[72,152],[130,174],[96,192]];
+  const leaves=[
+    {t:.12,x:96,y:188,r:-35},{t:.25,x:124,y:174,r:30},
+    {t:.4,x:88,y:160,r:-42},{t:.55,x:126,y:146,r:25},
+    {t:.7,x:96,y:132,r:-30},{t:.85,x:120,y:122,r:18}
+  ];
+  let parts='';
+  parts+='<path d="M72,206 L148,206 L139,238 L81,238 Z" fill="#f0e2cf" stroke="#dcc9ad" stroke-width="2"/>';
+  parts+='<rect x="64" y="198" width="92" height="9" rx="3" fill="#f0e2cf" stroke="#dcc9ad" stroke-width="2"/>';
+  parts+='<ellipse cx="110" cy="204" rx="44" ry="8" fill="#8a6a4f"/>';
+  parts+='<text x="110" y="229" text-anchor="middle" font-size="10" fill="#a68b6d" letter-spacing="2">POMO</text>';
+  parts+='<g class="sway" style="transform-origin:110px 204px">';
+  parts+='<path d="M110,204 C110,178 112,150 110,120" stroke="#5f8e4c" stroke-width="5" fill="none" stroke-linecap="round"/>';
+  leaves.forEach(function(L,i){
+    parts+='<g class="leaf '+(grow>=L.t?'on':'')+'" transform="translate('+L.x+','+L.y+') rotate('+L.r+') scale(0.9)">'
+      +'<path d="'+leafPath()+'" fill="'+(i%2?'#7fb069':'#6f9e4f')+'" opacity=".92"/>'
+      +'<path d="M0,0 L30,0" stroke="#5f8e4c" stroke-width="1" opacity=".6"/>'
+      +'</g>';
+  });
+  for(let i=0;i<Math.min(ripe,spots.length);i++){
+    parts+=fruitSVG(spots[i][0],spots[i][1],12,'#c4533a');
+  }
+  if(grow>0.45){
+    const r=5+(grow-0.45)*12;
+    parts+=fruitSVG(98,104,r,lerp('#6f9e4f','#c4533a',(grow-0.45)/0.55));
+  }
+  parts+='</g>';
+  return '<svg viewBox="0 0 220 244" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="番茄植株">'+parts+'</svg>';
+}
+function render(){
+  let h='';
+  for(let i=0;i<8;i++){
+    if(i<DONE.length){
+      h+='<div class="plot"><div class="p-plant">'+plantSVG(1,1)+'</div><div class="p-time">'+DONE[i].t+' · 专注</div></div>';
+    }else if(i===DONE.length){
+      h+='<div class="plot current"><div class="p-plant">'+plantSVG(0,0.62)+'</div><div class="p-time">正在生长…</div></div>';
+    }else{
+      h+='<div class="plot empty"><div class="p-soil"></div><div class="p-time">待种植</div></div>';
+    }
+  }
+  document.getElementById('cPlots').innerHTML=h;
+}
+render();
+</script>
+</body>
+</html>

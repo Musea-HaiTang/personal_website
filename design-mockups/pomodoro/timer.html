@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>番茄钟 · 确认版计时器 · PROTOTYPE</title>
+<!-- 确认版：B 藤蔓圆环（用户 2026-08-15 定稿，持续批注迭代）。
+     专注/休息两种模式；悬停时间旁出现 ✎，点击后原地输入分钟数（空框+占位符）；
+     今日 🍅 计数只在右上角，点击弹出今日专注列表；右下角浅绿小窗计时。PROTOTYPE —— 可丢弃。 -->
+<style>
+:root{
+  --paper:#f7f5f1; --paper-soft:#f4f1ea; --card:#fffefc; --hairline:#e9e3d9;
+  --ink:#2b2622; --sub:#7c7468;
+  --teal:#0e7c74; --teal-dark:#0a6a63; --teal-soft:#e7f1ef;
+  --green:#3d9970; --green-soft:#e7f1ec;
+  --amber:#b7791f; --amber-soft:#faf1dd;
+  --red:#c4533a; --red-soft:#f9ebe5;
+  --serif:"Songti SC","STSong","SimSun",serif;
+  --sans:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  --mono:"JetBrains Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);min-height:100vh;padding:30px 0 96px}
+.page-head{max-width:900px;margin:0 auto 24px;padding:0 20px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+h1{font-size:30px;color:var(--ink)}
+.sub{color:var(--sub);font-size:13px;margin-top:4px}
+.small{font-size:12px}
+.today-stats{background:var(--card);border:1px solid var(--hairline);border-radius:12px;padding:10px 16px;font-size:14px;color:var(--sub);cursor:pointer;font-family:var(--sans);text-align:left;transition:.15s}
+.today-stats:hover{border-color:var(--teal);box-shadow:0 4px 14px rgba(14,124,116,.10)}
+.today-stats b{color:var(--teal);font-size:18px}
+.caret{font-size:11px;color:var(--sub);margin-left:2px}
+.stats-wrap{position:relative}
+.popover{position:absolute;right:0;top:calc(100% + 8px);width:320px;max-width:86vw;background:var(--card);border:1px solid var(--hairline);border-radius:14px;box-shadow:0 14px 36px rgba(43,38,34,.16);padding:12px 14px;display:none;z-index:80}
+.popover.open{display:block}
+.pop-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.pop-head h3{font-size:15px}
+.pop-close{border:0;background:var(--paper-soft);width:24px;height:24px;border-radius:50%;color:var(--sub);cursor:pointer;font-size:14px;line-height:1}
+.pop-close:hover{background:var(--hairline);color:var(--ink)}
+.serif{font-family:var(--serif)}
+.card{background:var(--card);border:1px solid var(--hairline);border-radius:18px;box-shadow:0 6px 24px rgba(43,38,34,.06)}
+.modetabs{display:flex;justify-content:center;gap:4px;background:var(--paper-soft);border:1px solid var(--hairline);border-radius:999px;padding:4px;margin:0 auto 10px;width:max-content}
+.modebtn{border:0;background:transparent;padding:7px 18px;border-radius:999px;font-size:14px;color:var(--sub);cursor:pointer;transition:.2s}
+.modebtn:hover{color:var(--ink)}
+.modebtn.active[data-mode="focus"]{background:var(--teal);color:#fff}
+.modebtn.active[data-mode="break"]{background:var(--green);color:#fff}
+.t-time{font-family:var(--serif);font-size:58px;font-weight:700;letter-spacing:.02em;transition:color .4s;line-height:1.05}
+.time-edit{position:relative;display:inline-flex;align-items:center;justify-content:center;cursor:text}
+.edit-hint{position:absolute;left:calc(100% + 6px);top:50%;transform:translateY(-50%);font-size:15px;color:var(--sub);opacity:0;transition:opacity .2s;pointer-events:none;line-height:1}
+.time-edit:hover .edit-hint{opacity:1}
+.t-edit{font-family:var(--serif);font-size:52px;font-weight:700;text-align:center;width:3ch;border:0;border-bottom:2px dashed var(--teal);background:transparent;outline:none;caret-color:var(--teal);color:var(--ink);padding:0 2px;line-height:1.05}
+.t-edit::selection{background:var(--teal-soft)}
+.t-unit{font-size:14px;color:var(--sub);margin-left:2px}
+body[data-mode="focus"] .t-time{color:var(--teal)}
+body[data-mode="break"] .t-time{color:var(--green)}
+.controls{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.btn{font-family:var(--sans);font-size:15px;padding:9px 22px;border-radius:10px;border:1px solid transparent;cursor:pointer;transition:.15s}
+.btn.primary{background:var(--teal);color:#fff}
+.btn.primary:hover{background:var(--teal-dark)}
+.btn.primary.warn{background:var(--amber)}
+.btn.green{background:var(--green);color:#fff}
+.btn.ghost{border-color:var(--hairline);color:var(--sub);background:var(--card)}
+.btn.ghost:hover{background:var(--paper-soft)}
+.logs{display:flex;flex-direction:column;gap:6px}
+.logrow{display:flex;align-items:center;gap:10px;font-size:14px;padding:8px 10px;border:1px dashed var(--hairline);border-radius:10px}
+.logt{font-family:var(--mono);font-size:12px;color:var(--sub)}
+.logdot{width:10px;height:10px;border-radius:50%;background:var(--red);flex:none}
+.logrow.break .logdot{background:var(--amber)}
+.logl{color:var(--ink)}
+.ring{position:relative;width:300px;height:300px;margin:6px auto}
+.ring svg{display:block;width:100%;height:100%}
+.ring-bg{fill:none;stroke:var(--hairline);stroke-width:14}
+.ring-prog{fill:none;stroke:var(--teal);stroke-width:14;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s linear, stroke .4s}
+.ring-vine{fill:none;stroke:#c9c1b2;stroke-dasharray:4 10;stroke-width:2}
+.ring-time{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.b-grid{max-width:560px;margin:0 auto;padding:0 20px}
+.ring-card{text-align:center;padding:28px 24px 26px}
+.icon-btn{width:52px;height:52px;border-radius:50%;border:1px solid transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:.15s}
+.icon-btn.primary{background:var(--teal);color:#fff}
+.icon-btn.primary:hover{background:var(--teal-dark)}
+.icon-btn.primary.playing{background:var(--amber)}
+.icon-btn.ghost{border-color:var(--hairline);color:var(--sub);background:var(--card)}
+.icon-btn.ghost:hover{background:var(--paper-soft)}
+.icon-btn.green{background:var(--green);color:#fff}
+.icon-btn .ic{width:22px;height:22px}
+.icon-btn.disabled{opacity:.45;cursor:not-allowed;pointer-events:none;background:var(--paper-soft);border-color:var(--hairline);border-style:dashed;color:var(--sub)}
+.icon-btn .ic-pause{display:none}
+.icon-btn.playing .ic-pause{display:block}
+.icon-btn.playing .ic-play{display:none}
+.mini{position:fixed;right:18px;bottom:18px;background:#e7f1ec;border:1px solid #c9e2d5;border-radius:16px;box-shadow:0 10px 30px rgba(61,153,112,.18);padding:10px 12px;display:none;align-items:center;gap:12px;z-index:70}
+.mini.show{display:flex}
+.mini-ring{position:relative;width:52px;height:52px}
+.mini-ring svg{display:block;width:100%;height:100%}
+.mini-bg{fill:none;stroke:#cfe6d8;stroke-width:4}
+.mini-prog{fill:none;stroke:var(--teal);stroke-width:4;stroke-linecap:round;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s linear, stroke .4s}
+.mini-time{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:#3d9970}
+.mini-meta{display:flex;flex-direction:column;gap:4px}
+.mini-label{font-size:12px;color:#5d8f76}
+.mini-actions{display:flex;gap:6px}
+.mini-btn{width:30px;height:30px;border-radius:50%;border:1px solid #c9e2d5;background:#fff;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.mini-btn:hover{background:#f4faf7}
+.mini-btn .ic{width:14px;height:14px}
+.mini-btn .ic-pause{display:none}
+.mini-btn.playing .ic-pause{display:block}
+.mini-btn.playing .ic-play{display:none}
+.mini-close{color:var(--sub)}
+#toast{position:fixed;top:18px;left:50%;transform:translateX(-50%) translateY(-14px);background:var(--card);border:1px solid var(--hairline);box-shadow:0 8px 24px rgba(43,38,34,.14);border-radius:999px;padding:10px 20px;font-size:14px;opacity:0;transition:.25s;z-index:70;pointer-events:none}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-mode="focus">
+<div id="toast"></div>
+
+<header class="page-head">
+  <div>
+    <h1 class="serif">番茄钟</h1>
+    <p class="sub">藤蔓绕着时间生长</p>
+  </div>
+  <div class="stats-wrap">
+    <button class="today-stats" id="statsBtn" type="button">
+      今日 <b id="bCount">0</b> 个 🍅 · <b id="bTotal">0</b> 分钟 <span class="caret">▾</span>
+    </button>
+    <div class="popover" id="popover">
+      <div class="pop-head">
+        <h3 class="serif">今日专注</h3>
+        <button class="pop-close" id="popClose" type="button" title="关闭">×</button>
+      </div>
+      <div class="logs" id="popLogs"></div>
+    </div>
+  </div>
+</header>
+
+<div class="b-grid">
+  <div class="card ring-card">
+    <div class="modetabs">
+      <button class="modebtn" data-act="mode" data-mode="focus">专注</button>
+      <button class="modebtn" data-act="mode" data-mode="break">休息</button>
+    </div>
+    <div class="ring">
+      <svg viewBox="0 0 320 320" width="300" height="300">
+        <circle class="ring-bg" cx="160" cy="160" r="128"/>
+        <circle class="ring-prog" id="bProg" cx="160" cy="160" r="128"/>
+        <circle class="ring-vine" cx="160" cy="160" r="144"/>
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0 160 160" to="360 160 160" dur="45s" repeatCount="indefinite"/>
+          <g transform="translate(160,16) rotate(8)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+          <g transform="translate(304,160) rotate(98)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+          <g transform="translate(160,304) rotate(188)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+          <g transform="translate(16,160) rotate(278)"><path d="M0,0 C12,-10 28,-10 36,0 C28,10 12,10 0,0 Z" fill="#7fb069" opacity=".5"/></g>
+        </g>
+      </svg>
+      <div class="ring-time">
+        <div class="time-edit" title="点击修改时长">
+          <span class="t-time" id="timeDisplay">25:00</span>
+          <span class="edit-hint" aria-hidden="true">✎</span>
+          <input class="t-edit" id="timeInput" style="display:none" inputmode="numeric" autocomplete="off" spellcheck="false" aria-label="输入分钟数">
+          <span class="t-unit" id="timeUnit" style="display:none">分钟</span>
+        </div>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="icon-btn primary" data-act="start" type="button" title="开始" aria-label="开始或暂停">
+        <svg class="ic ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>
+        <svg class="ic ic-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+      </button>
+      <button class="icon-btn ghost" data-act="reset" type="button" title="重置" aria-label="重置">
+        <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="5.5" width="13" height="13" rx="2"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="mini" id="mini">
+  <div class="mini-ring">
+    <svg viewBox="0 0 52 52">
+      <circle class="mini-bg" cx="26" cy="26" r="22"/>
+      <circle class="mini-prog" id="miniProg" cx="26" cy="26" r="22"/>
+    </svg>
+    <span class="mini-time" id="miniTime">25:00</span>
+  </div>
+  <div class="mini-meta">
+    <span class="mini-label" id="miniLabel">专注</span>
+    <div class="mini-actions">
+      <button class="mini-btn" id="miniToggle" type="button" title="暂停/继续" aria-label="暂停或继续">
+        <svg class="ic ic-play" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l13-7.5z"/></svg>
+        <svg class="ic ic-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/></svg>
+      </button>
+      <button class="mini-btn mini-close" id="miniClose" type="button" title="收起">×</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const MODES={
+  focus:{label:'专注',sec:25*60,color:'teal'},
+  break:{label:'休息',sec:5*60,color:'green'}
+};
+const S={
+  mode:'focus',running:false,paused:false,
+  total:MODES.focus.sec,remaining:MODES.focus.sec,
+  done:[{t:'09:00'},{t:'09:45'},{t:'10:30'}],
+  miniHidden:false,
+  logs:[
+    {t:'09:00',label:'专注 25 分钟'},
+    {t:'09:35',label:'休息 5 分钟'},
+    {t:'09:45',label:'专注 25 分钟'},
+    {t:'10:20',label:'休息 5 分钟'},
+    {t:'10:30',label:'专注 25 分钟'}
+  ]
+};
+let timer=null;
+function fmt(s){
+  s=Math.max(0,s);
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function fmtMin(s){return s>=60?Math.round(s/60)+' 分钟':s+' 秒';}
+function logRow(d){
+  const brk=d.label.indexOf('休')>=0;
+  return '<div class="logrow'+(brk?' break':'')+'"><span class="logt">'+d.t+'</span><span class="logdot"></span><span class="logl">'+d.label+'</span></div>';
+}
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg;el.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t=setTimeout(function(){el.classList.remove('show');},2200);
+}
+function render(){
+  const p=S.remaining>0?1-S.remaining/S.total:1;
+  const t=fmt(S.remaining);
+  const totalMin=Math.round(S.done.length*25);
+  document.body.dataset.mode=S.mode;
+  document.querySelectorAll('[data-act="mode"]').forEach(function(btn){
+    btn.classList.toggle('active',btn.dataset.mode===S.mode);
+  });
+  document.getElementById('timeDisplay').textContent=t;
+  const start=document.querySelector('[data-act="start"]');
+  start.classList.toggle('playing',S.running);
+  start.title=S.running?'暂停':'开始';
+  const resetBtn=document.querySelector('[data-act="reset"]');
+  resetBtn.classList.toggle('disabled',!(S.running||S.paused));
+  const R=128,C=2*Math.PI*R,prog=document.getElementById('bProg');
+  prog.style.strokeDasharray=C;
+  prog.style.strokeDashoffset=C*(1-p);
+  prog.style.stroke='var(--'+MODES[S.mode].color+')';
+  document.getElementById('popLogs').innerHTML=S.logs.slice().reverse().map(logRow).join('');
+  document.getElementById('bCount').textContent=S.done.length;
+  document.getElementById('bTotal').textContent=totalMin;
+  const mini=document.getElementById('mini');
+  const showMini=(S.running||S.paused)&&!S.miniHidden;
+  mini.classList.toggle('show',showMini);
+  if(showMini){
+    document.getElementById('miniTime').textContent=t;
+    const MR=22,MC=2*Math.PI*MR,mp=document.getElementById('miniProg');
+    mp.style.strokeDasharray=MC;
+    mp.style.strokeDashoffset=MC*(1-p);
+    mp.style.stroke='var(--'+MODES[S.mode].color+')';
+    document.getElementById('miniLabel').textContent=MODES[S.mode].label;
+    document.getElementById('miniToggle').classList.toggle('playing',S.running);
+  }
+}
+function startPause(){
+  if(S.running){clearInterval(timer);timer=null;S.running=false;S.paused=true;}
+  else{S.running=true;S.paused=false;S.miniHidden=false;timer=setInterval(tick,1000);}
+  render();
+}
+function tick(){
+  S.remaining--;
+  if(S.remaining<=0){complete();}else{render();}
+}
+function reset(){
+  clearInterval(timer);timer=null;
+  S.running=false;S.paused=false;S.remaining=S.total;
+  render();
+}
+function setMode(m){
+  clearInterval(timer);timer=null;
+  S.mode=m;S.running=false;S.paused=false;
+  S.total=MODES[m].sec;S.remaining=S.total;
+  render();
+}
+function nowHM(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+function complete(){
+  clearInterval(timer);timer=null;
+  const t=nowHM();
+  if(S.mode==='focus'){
+    const elapsed=S.remaining>0?(S.total-S.remaining):S.total;
+    S.done.push({t:t});
+    S.logs.push({t:t,label:'专注 '+fmtMin(Math.max(1,Math.round(elapsed)))});
+    toast('收获一颗番茄 🍅');
+    S.mode='break';
+  }else{
+    S.logs.push({t:t,label:'休息 '+S.total/60+' 分钟'});
+    S.mode='focus';
+  }
+  S.total=MODES[S.mode].sec;S.remaining=S.total;
+  S.running=false;S.paused=false;
+  render();
+}
+document.addEventListener('click',function(e){
+  const btn=e.target.closest('[data-act]');
+  if(!btn)return;
+  const act=btn.dataset.act;
+  if(act==='mode')setMode(btn.dataset.mode);
+  else if(act==='start')startPause();
+  else if(act==='reset')reset();
+});
+const pop=document.getElementById('popover');
+document.getElementById('statsBtn').addEventListener('click',function(e){
+  e.stopPropagation();
+  pop.classList.toggle('open');
+});
+document.getElementById('popClose').addEventListener('click',function(e){
+  e.stopPropagation();
+  pop.classList.remove('open');
+});
+document.addEventListener('click',function(){pop.classList.remove('open');});
+document.getElementById('miniToggle').addEventListener('click',startPause);
+document.getElementById('miniClose').addEventListener('click',function(){
+  S.miniHidden=true;
+  render();
+});
+const timeInput=document.getElementById('timeInput');
+const timeDisplay=document.getElementById('timeDisplay');
+const timeUnit=document.getElementById('timeUnit');
+const timeEdit=document.querySelector('.time-edit');
+function enterEdit(){
+  if(S.running||S.paused)return;
+  timeDisplay.style.display='none';
+  timeInput.style.display='inline-block';
+  timeUnit.style.display='inline';
+  timeInput.value='';
+  timeInput.placeholder=String(MODES[S.mode].sec/60);
+  timeInput.focus();
+}
+function exitEdit(apply){
+  if(apply){
+    const v=timeInput.value.trim();
+    let mins;
+    if(v.indexOf(':')>=0){
+      const p=v.split(':');
+      mins=(parseInt(p[0],10)||0)+(parseInt(p[1],10)||0)/60;
+    }else{
+      mins=parseFloat(v);
+    }
+    if(isFinite(mins)&&mins>0){
+      const max=S.mode==='focus'?120:60;
+      mins=Math.min(max,Math.max(1,mins));
+      S.total=Math.round(mins*60);
+      S.remaining=S.total;
+    }
+  }
+  timeInput.style.display='none';
+  timeUnit.style.display='none';
+  timeDisplay.style.display='inline';
+  render();
+}
+timeEdit.addEventListener('click',function(e){
+  if(e.target===timeInput)return;
+  enterEdit();
+});
+timeInput.addEventListener('keydown',function(e){
+  if(e.key==='Enter'){exitEdit(true);}
+  else if(e.key==='Escape'){exitEdit(false);}
+});
+timeInput.addEventListener('blur',function(){exitEdit(true);});
+const qp=new URLSearchParams(location.search);
+if(qp.get('demo')==='1')S.remaining=Math.round(S.total*0.62);
+if(qp.get('run')==='1'){
+  S.running=true;
+  timer=setInterval(tick,1000);
+}
+render();
+</script>
+</body>
+</html>
