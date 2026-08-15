@@ -157,6 +157,7 @@ personal_website/
 - 设计定稿（`design-mockups/pomodoro/timer.html` 原型）：藤蔓圆环 + 专注/休息双模式 + 图标控制按钮；点击环内时间数字直接输入分钟数（悬停 ✎ 提示，空框输入不再全选）；今日 🍅 计数与「今日专注」会话列表并入右上角统计按钮弹层；计时中右下角浅绿小窗全局显示。
 - 实现：新增 `stores/pomodoro.js`（Pinia 全局状态，结束时间戳校准防切后台漂移）、重写 `views/PomodoroView.vue`、新增全局 `components/FloatingTimer.vue`（小窗 + 完成 toast）；专注结束自动 `POST /api/pomodoro/sessions` 并刷新当日统计。
 - 验证结果：`npm run build` 通过（PomodoroView 独立 CSS/JS chunk 正常产出）；后端 API 复用现有路由，无改动。
+- 确认（2026-08-15）：双轴 code-review 通过（提交 494f410 / 6c63e2d 已推送 main），issue #6 已关闭。
 
 **日记页已完成（2026-08-14）**，对应 GitHub issue #5：
 
@@ -241,4 +242,4 @@ personal_website/
 7. `/code-review`：对一次改动做双轴审查（Standards 是否符合仓库规范、Spec 是否实现对应 issue 要求），通过后关闭该 issue。
 8. 全部完成后做整体验收，并同步更新 plan.md。
 
-当前进度（2026-08-15）：#2 项目骨架、#4 计划任务模块、#5 日记模块（含「便利贴闪念 + 信纸日记 + 图表」改版）已确认关闭；#3 导航已初步实现并推送，#6 番茄钟已完成视觉改版（按定稿原型重写 + 全局小窗计时）；frontier 为 #7 聚合首页 → #8 番茄绑定任务与整体验收。
+当前进度（2026-08-15）：#2 项目骨架、#4 计划任务模块、#5 日记模块（含「便利贴闪念 + 信纸日记 + 图表」改版）、#6 番茄钟（含视觉改版 + 全局小窗计时）已确认关闭；#3 导航已初步实现并推送；frontier 为 #7 聚合首页 → #8 番茄绑定任务与整体验收。
