@@ -62,6 +62,7 @@ function onDocClick() {
 
 onMounted(() => {
   store.loadToday()
+  store.loadTasks()
   document.addEventListener('click', onDocClick)
 })
 
@@ -90,6 +91,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
               <span class="logt">{{ fmtSessionTime(s.started_at) }}</span>
               <span class="logdot" />
               <span class="logl">专注 {{ fmtDuration(s.focus_seconds) }}</span>
+              <span v-if="s.task_title" class="logtask">{{ s.task_title }}</span>
             </div>
           </div>
           <p v-else class="empty-tip">今天还没有专注记录，点开始种下第一颗 🍅</p>
@@ -185,6 +187,18 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
           <svg class="ic" viewBox="0 0 24 24" fill="currentColor"><rect x="5.5" y="5.5" width="13" height="13" rx="2" /></svg>
         </button>
       </div>
+
+      <div class="taskbind" :class="{ off: store.mode !== 'focus' || store.running || store.paused }">
+        <label for="pomodoro-task">绑定任务</label>
+        <select
+          id="pomodoro-task"
+          v-model="store.taskId"
+          :disabled="store.mode !== 'focus' || store.running || store.paused"
+        >
+          <option :value="null">不绑定（自由专注）</option>
+          <option v-for="t in store.tasks" :key="t.id" :value="t.id">{{ t.title }}</option>
+        </select>
+      </div>
     </div>
   </div>
 </template>
@@ -279,6 +293,13 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 }
 .logl {
   color: #2b2622;
+}
+.logtask {
+  color: #0e7c74;
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .empty-tip {
   font-size: 13px;
@@ -471,5 +492,39 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   border-color: #e9e3d9;
   border-style: dashed;
   color: #7c7468;
+}
+.taskbind {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 18px;
+  font-size: 14px;
+  color: #7c7468;
+  transition: opacity 0.2s;
+}
+.taskbind.off {
+  opacity: 0.55;
+}
+.taskbind label {
+  flex: none;
+}
+.taskbind select {
+  max-width: 260px;
+  background: #fffefc;
+  border: 1px solid #e9e3d9;
+  border-radius: 10px;
+  padding: 7px 10px;
+  font-size: 14px;
+  color: #2b2622;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+.taskbind select:focus {
+  border-color: #0e7c74;
+}
+.taskbind select:disabled {
+  cursor: not-allowed;
 }
 </style>

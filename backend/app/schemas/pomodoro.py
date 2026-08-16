@@ -16,6 +16,7 @@ class PomodoroSessionOut(BaseModel):
     ended_at: datetime.datetime
     focus_seconds: int
     task_id: int | None
+    task_title: str | None = None
 
 
 class PomodoroDaySummary(BaseModel):

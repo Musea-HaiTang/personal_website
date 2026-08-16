@@ -22,6 +22,8 @@ export const usePomodoroStore = defineStore('pomodoro', {
     count: 0,
     totalSeconds: 0,
     sessions: [],
+    tasks: [],
+    taskId: null,
     error: '',
     toastMsg: '',
     toastSeq: 0
@@ -64,6 +66,15 @@ export const usePomodoroStore = defineStore('pomodoro', {
         this.sessions = data.sessions
       } catch (e) {
         this.error = e.response?.data?.detail || '加载今日统计失败'
+      }
+    },
+    async loadTasks() {
+      try {
+        const { data } = await api.get('/tasks', { params: { date: localDateStr() } })
+        this.tasks = data.filter((t) => !t.completed)
+        if (this.taskId && !this.tasks.some((t) => t.id === this.taskId)) this.taskId = null
+      } catch (e) {
+        this.error = e.response?.data?.detail || '加载今日任务失败'
       }
     },
     setMode(m) {
@@ -116,7 +127,7 @@ export const usePomodoroStore = defineStore('pomodoro', {
         const elapsed = this.remainingSec > 0 ? this.totalSec - this.remainingSec : this.totalSec
         const sec = Math.max(1, Math.round(elapsed))
         try {
-          const { data } = await api.post('/pomodoro/sessions', { focus_seconds: sec })
+          const { data } = await api.post('/pomodoro/sessions', { focus_seconds: sec, task_id: this.taskId || null })
           this.count += 1
           this.totalSeconds += sec
           this.sessions.unshift(data)

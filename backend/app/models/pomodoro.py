@@ -1,10 +1,11 @@
 import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.config import now_local
 from app.database import Base
+from app.models.tasks import Task
 
 
 class PomodoroSession(Base):
@@ -19,3 +20,9 @@ class PomodoroSession(Base):
     task_id: Mapped[int | None] = mapped_column(ForeignKey("tasks.id"), nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime, default=now_local)
     user_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+
+    task: Mapped["Task | None"] = relationship()
+
+    @property
+    def task_title(self) -> str | None:
+        return self.task.title if self.task else None

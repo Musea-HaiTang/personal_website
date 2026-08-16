@@ -1,12 +1,13 @@
 import datetime
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import LOCAL_TZ, now_local
 from app.database import get_db
 from app.models.pomodoro import PomodoroSession
+from app.models.tasks import Task
 from app.schemas.pomodoro import PomodoroDaySummary, PomodoroSessionCreate, PomodoroSessionOut
 
 router = APIRouter(prefix="/api/pomodoro", tags=["pomodoro"])
@@ -31,6 +32,8 @@ def list_sessions(day: datetime.date = Query(default_factory=lambda: now_local()
 
 @router.post("/sessions", response_model=PomodoroSessionOut, status_code=201)
 def create_session(payload: PomodoroSessionCreate, db: Session = Depends(get_db)):
+    if payload.task_id is not None and db.get(Task, payload.task_id) is None:
+        raise HTTPException(status_code=404, detail="任务不存在")
     now = now_local()
     started = now - datetime.timedelta(seconds=payload.focus_seconds)
     session = PomodoroSession(
