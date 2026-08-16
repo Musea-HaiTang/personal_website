@@ -16,7 +16,7 @@
 
 | 技能 | 用途 | 触发方式 |
 | --- | --- | --- |
-| `/setup-matt-pocock-skills` | 初始化仓库配置（issue tracker、domain docs 布局） | 新仓库首次使用前 |
+| `/setup-matt-pocock-skills` | 初始化仓库配置（issue tracker、domain docs 布局） | 配置缺失时由 agent 自动补跑（无需用户手动执行） |
 | `/grill-me` | 需求访谈，确定方案 | 需求未定时显式调用 |
 | `/prototype` | UI 原型（`design-mockups/`） | UI 类需求显式调用 |
 | `/to-spec` | 发布 SPEC issue，打 `ready-for-agent` 标签 | 需求定稿后显式调用 |
@@ -49,6 +49,7 @@
 - 验收证据留痕：测试项数、构建结果、冒烟流程与数据清理情况写入 issue 评论与 plan.md。
 - 冒烟数据必须清理：只删除本次创建的测试数据，不触碰真实数据。
 - 遇阻及时上报：步骤长时间无进展（反复重试失败、疑似死循环、超时）立即停止并报告，不绕道假装完成。
+- 配置缺失自动补齐：仓库缺少 AGENTS.md / docs/agents 指引时，agent 先自动运行 `/setup-matt-pocock-skills` 再继续流程，无需用户手动操作。
 
 ## 4. 审查子代理任务模板
 
@@ -66,7 +67,7 @@
 ## 5. 新项目落地清单
 
 1. 复制本文件到新仓库 `docs/agents/workflow.md`。
-2. 首次使用前运行 `/setup-matt-pocock-skills` 初始化 issue tracker 与 domain docs。
+2. 若发现仓库配置缺失（AGENTS.md / docs/agents 指引），agent 按工作流执行时自动补跑 `/setup-matt-pocock-skills`，无需用户手动操作。
 3. 在根目录 `AGENTS.md` 引用本文件（「# Agent skills」或工作流小节）。
 4. plan.md（若有）第 7 节指向本文件，不重复维护全文。
 5. 按实际仓库调整：issue 编号、SPEC 文件、技能名称、测试/构建命令。
