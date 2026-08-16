@@ -1,9 +1,11 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import api from '../api'
+import { useDiaryStore } from '../stores/diary'
 
-const entries = ref([])
-const flashes = ref([])
+const diaryStore = useDiaryStore()
+const entries = computed(() => diaryStore.entries)
+const flashes = computed(() => diaryStore.flashes)
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
@@ -116,15 +118,9 @@ const allTags = computed(() => [...new Set(entries.value.flatMap((e) => e.tags |
 async function loadAll() {
   loading.value = true
   error.value = ''
-  try {
-    const [d, f] = await Promise.all([api.get('/diary'), api.get('/flash')])
-    entries.value = d.data
-    flashes.value = f.data
-  } catch (e) {
-    error.value = e.response?.data?.detail || '加载日记失败'
-  } finally {
-    loading.value = false
-  }
+  await diaryStore.refresh()
+  error.value = diaryStore.error
+  loading.value = false
 }
 
 /* ---------- 编辑弹窗 ---------- */
@@ -241,7 +237,9 @@ const otdEntry = computed(() => {
   return entries.value.find((e) => e.date === key) || null
 })
 
-onMounted(loadAll)
+onMounted(() => {
+  if (!diaryStore.loaded) loadAll()
+})
 </script>
 
 <template>
@@ -528,6 +526,11 @@ onMounted(loadAll)
   box-shadow: 0 1px 3px rgba(43, 38, 34, 0.05);
 }
 .letter {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
   background: #fdfbf7;
   font-family: var(--kai);
   border-radius: 8px;

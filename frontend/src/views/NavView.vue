@@ -1,11 +1,13 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue'
 import api from '../api'
+import { useNavStore } from '../stores/nav'
 
-const categories = ref([])
+const navStore = useNavStore()
+const categories = computed(() => navStore.categories)
 const keyword = ref('')
 const loading = ref(false)
-const error = ref('')
+const error = computed(() => navStore.error)
 const iconFailed = ref(new Set())
 
 const modal = reactive({ visible: false, mode: 'add', tab: 'link', editing: null })
@@ -20,15 +22,8 @@ const ICON_ADD =
 
 async function loadData() {
   loading.value = true
-  error.value = ''
-  try {
-    const { data } = await api.get('/nav/categories')
-    categories.value = data
-  } catch (e) {
-    error.value = e.response?.data?.detail || '加载导航数据失败'
-  } finally {
-    loading.value = false
-  }
+  await navStore.refresh()
+  loading.value = false
 }
 
 const filteredCategories = computed(() => {
@@ -203,7 +198,9 @@ async function deleteEditingLink() {
   }
 }
 
-onMounted(loadData)
+onMounted(() => {
+  if (!navStore.loaded) loadData()
+})
 </script>
 
 <template>
