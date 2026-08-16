@@ -31,3 +31,22 @@ def test_favicon_fetch_and_cache(client, monkeypatch):
 def test_favicon_invalid_domain(client):
     resp = client.get("/api/nav/favicons?domain=bad%20domain")
     assert resp.status_code == 400
+
+
+def test_extract_icon_href():
+    html = '<html><head><link rel="shortcut icon" href="/assets/fav.svg"><link rel="stylesheet" href="/app.css"></head></html>'
+    assert favicon_service._extract_icon_href(html) == "/assets/fav.svg"
+    assert favicon_service._extract_icon_href("<html></html>") is None
+
+
+def test_negative_cache_skips_retry(monkeypatch):
+    calls = {"n": 0}
+
+    def failing_download(domain):
+        calls["n"] += 1
+        return None
+
+    monkeypatch.setattr(favicon_service, "_download", failing_download)
+    assert favicon_service.fetch_and_cache("never-exists.example") is None
+    assert favicon_service.fetch_and_cache("never-exists.example") is None
+    assert calls["n"] == 1  # 负缓存期内第二次不再发起网络请求

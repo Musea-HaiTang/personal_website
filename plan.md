@@ -252,6 +252,7 @@ personal_website/
 - 实现：后端 `app/services/favicon.py`（抓取 → 本地缓存，TTL 7 天，旧缓存兜底）+ `GET /api/nav/favicons?domain=`；前端 `NavView.vue` 样式与定稿样板 HTML 完全一致（CSS 原样搬入，含搜索高亮、新增弹窗、编辑角标）。
 - 示例数据：已导入样板分类与网址（图片生成 / 写作助手 / 开发工具 / 日常，共 13 个链接），用户可自行调整。
 - 验证：`pytest` 6 项通过（nav + favicon）；`npm run build` 通过；真实抓取 github.com favicon 缓存成功（image/x-icon）。
+- favicon 增强（2026-08-16）：解析首页 HTML `<link rel="icon">` 真实图标地址（jimeng / deepseek 已验证可取到）；抓取失败负缓存 24h 不重试；超时 8s → 5s。
 - 待办：双轴 code-review → 关闭 issue #3 → 推送 main。
 
 **UI 缓存（2026-08-16）**：日记页与导航页接入 Pinia store 缓存（`stores/diary.js`、`stores/nav.js`），与计划页一致——进入页面仅在未加载时拉取一次数据，写操作后刷新缓存。
