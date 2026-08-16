@@ -245,7 +245,7 @@ personal_website/
 
 ## 7. 工程工作流
 
-标准流程（访谈 → 原型 → 规格 → 拆票 → 实现 → 双轴审查 → 收尾 → 整体验收）、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)；新仓库首次使用前先运行 `/setup-matt-pocock-skills` 完成配置（本仓库 issue tracker 为 GitHub，见 `docs/agents/issue-tracker.md`）。以下为仓库进度与迭代记录。
+标准流程、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)。以下为仓库进度与迭代记录。
 
 当前进度（2026-08-16）：#2 项目骨架、#3 导航模块（含书签墙视觉改版 + favicon 后端缓存 + 日记/导航 Pinia 缓存）、#4 计划任务模块、#5 日记模块（含「便利贴闪念 + 信纸日记 + 图表」改版）、#6 番茄钟（含视觉改版 + 全局小窗计时 + 绑定任务）、#7 聚合首页（/api/dashboard + 首页四块数据）、#8 番茄绑定任务与整体验收均已确认关闭并推送 main；P0 交付完成，frontier 清空。
 
