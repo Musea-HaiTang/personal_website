@@ -515,7 +515,7 @@ button {
 .icon-btn-primary:hover {
   background: var(--teal-dark);
 }
-.icon-btn-primary svg {
+.icon-btn-primary :deep(svg) {
   width: 18px;
   height: 18px;
   display: block;
@@ -653,7 +653,7 @@ button {
   opacity: 0;
   transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
-.tile-action-btn svg {
+.tile-action-btn :deep(svg) {
   width: 12px;
   height: 12px;
   display: block;
