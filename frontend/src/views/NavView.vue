@@ -657,7 +657,6 @@ button {
   width: 12px;
   height: 12px;
   display: block;
-  transform: translateX(-1px);
 }
 .tile-action-btn:hover {
   color: var(--teal);
