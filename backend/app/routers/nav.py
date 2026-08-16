@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
@@ -12,6 +13,7 @@ from app.schemas.nav import (
     NavLinkOut,
     NavLinkUpdate,
 )
+from app.services import favicon as favicon_service
 
 router = APIRouter(prefix="/api/nav", tags=["nav"])
 
@@ -70,6 +72,22 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
 def list_links(db: Session = Depends(get_db)):
     stmt = select(NavLink).order_by(NavLink.is_pinned.desc(), NavLink.sort_order, NavLink.id)
     return db.scalars(stmt).all()
+
+
+@router.get("/favicons")
+def get_favicon(domain: str):
+    """返回本地缓存的网站图标；未缓存或过期时先抓取一次（缓存 7 天）。"""
+    clean = favicon_service.sanitize_domain(domain)
+    if clean is None:
+        raise HTTPException(status_code=400, detail="域名格式不正确")
+    path = favicon_service.fetch_and_cache(clean)
+    if path is None:
+        raise HTTPException(status_code=404, detail="未能获取网站图标")
+    return FileResponse(
+        path,
+        media_type=favicon_service.media_type_for(path),
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.post("/links", response_model=NavLinkOut, status_code=201)
