@@ -52,6 +52,25 @@ const pinnedLinks = computed(() =>
   filteredCategories.value.flatMap((cat) => cat.links).filter((link) => link.is_pinned)
 )
 
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]))
+}
+
+function hl(text) {
+  const kw = keyword.value.trim()
+  const s = esc(text)
+  if (!kw) return s
+  const idx = s.toLowerCase().indexOf(kw.toLowerCase())
+  if (idx === -1) return s
+  return s.slice(0, idx) + '<mark class="hl">' + s.slice(idx, idx + kw.length) + '</mark>' + s.slice(idx + kw.length)
+}
+
 function domainOf(url) {
   try {
     return new URL(url).hostname.replace(/^www\./, '')
@@ -188,126 +207,101 @@ onMounted(loadData)
 </script>
 
 <template>
-  <div>
-    <header class="sticky top-0 z-20 -mx-8 mb-6 border-b border-hairline bg-paper/90 px-8 py-4 backdrop-blur">
-      <div class="flex items-center justify-between gap-4">
-        <div class="flex flex-1 items-center gap-4">
-          <h2 class="font-serif text-2xl font-bold text-ink">导航</h2>
-          <input
-            v-model="keyword"
-            type="text"
-            placeholder="搜索标题、分类或网址…"
-            class="w-80 max-w-full rounded border border-hairline bg-card px-3 py-2 text-sm focus:border-teal focus:outline-none"
-          />
-        </div>
-        <button class="btn-add" title="新增" @click="openAdd">
+  <div class="page vc">
+    <header class="vc-bar">
+      <div class="vc-bar-main">
+        <h1>导航</h1>
+        <input v-model="keyword" class="search" type="text" placeholder="搜索标题、分类或网址…" />
+      </div>
+      <div class="vc-bar-actions">
+        <button class="icon-btn-primary" title="新增" @click="openAdd">
           <span v-html="ICON_ADD"></span>
           <span>新增</span>
         </button>
       </div>
     </header>
 
-    <p v-if="error" class="mb-4 rounded bg-red-soft px-3 py-2 text-sm text-red">{{ error }}</p>
-    <p v-if="loading" class="text-sm text-sub">加载中…</p>
-    <p v-else-if="!filteredCategories.length" class="text-sm text-sub">暂无导航内容，先点右上角「新增」创建一个吧。</p>
+    <p v-if="error" class="nav-note nav-error">{{ error }}</p>
+    <p v-if="loading" class="nav-note">加载中…</p>
+    <p v-else-if="!filteredCategories.length" class="nav-note">暂无导航内容，先点右上角「新增」创建一个吧。</p>
 
-    <section v-if="pinnedLinks.length" class="mb-8">
-      <div class="mb-3 flex items-center gap-2">
-        <h3 class="font-serif text-lg font-bold text-ink">常用</h3>
-        <span class="count-badge">{{ pinnedLinks.length }}</span>
-      </div>
-      <div class="flex gap-2.5 overflow-x-auto pb-2">
-        <div v-for="link in pinnedLinks" :key="link.id" class="chip group relative shrink-0">
-          <a :href="link.url" target="_blank" rel="noopener" class="chip-main">
-            <span class="icon-wrap h-6 w-6 rounded-full" :style="iconStyle(link)">
+    <section v-if="pinnedLinks.length" class="vc-section">
+      <h2 class="sec-title">常用<span class="count">{{ pinnedLinks.length }}</span></h2>
+      <div class="vc-strip">
+        <div v-for="link in pinnedLinks" :key="link.id" class="vc-chip">
+          <a class="vc-chip-main" :href="link.url" target="_blank" rel="noopener">
+            <span class="tile-icon" :style="iconStyle(link)">
               <img
                 v-if="!iconFailed.has(link.id)"
                 :src="faviconUrl(link.url)"
                 alt=""
-                class="h-3.5 w-3.5 object-contain"
+                loading="lazy"
                 @error="handleIconError(link.id)"
               />
-              <svg
-                v-else
-                viewBox="0 0 24 24"
-                class="h-3.5 w-3.5"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                aria-hidden="true"
-              >
-                <circle cx="12" cy="12" r="9" />
-                <path d="M3 12h18M12 3c3.2 3.4 3.2 14.2 0 18M12 3c-3.2 3.4-3.2 14.2 0 18" />
-              </svg>
+              <span v-else class="fallback">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M3 12h18M12 3c3.2 3.4 3.2 14.2 0 18M12 3c-3.2 3.4-3.2 14.2 0 18" />
+                </svg>
+              </span>
             </span>
-            <span class="chip-title">{{ link.title }}</span>
+            <span class="vc-chip-title" v-html="hl(link.title)"></span>
           </a>
-          <button class="edit-badge" title="编辑" @click="openEdit(link)">
+          <button class="tile-action-btn" title="编辑" @click="openEdit(link)">
             <span v-html="ICON_EDIT"></span>
           </button>
         </div>
       </div>
     </section>
 
-    <section
-      v-for="category in filteredCategories"
-      :key="category.id"
-      class="mb-7 border-t border-dashed border-hairline pt-4"
-    >
-      <div class="mb-3 flex items-baseline gap-2.5">
-        <h3 class="font-serif text-lg font-bold text-ink">{{ category.name }}</h3>
-        <span class="count-badge">{{ category.links.length }}</span>
+    <section v-for="category in filteredCategories" :key="category.id" class="vc-band">
+      <div class="vc-band-head">
+        <h2>{{ category.name }}</h2>
+        <span class="count">{{ category.links.length }}</span>
       </div>
-
-      <ul v-if="category.links.length" class="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
-        <li
-          v-for="link in category.links"
-          :key="link.id"
-          class="group relative flex items-center gap-2.5 rounded-lg border border-hairline bg-card px-3 py-2.5 transition hover:border-teal hover:bg-teal-soft"
-        >
-          <span class="icon-wrap h-7 w-7 rounded-lg" :style="iconStyle(link)">
+      <div v-if="category.links.length" class="vc-grid">
+        <div v-for="link in category.links" :key="link.id" class="vc-tile">
+          <span class="tile-icon" :style="iconStyle(link)">
             <img
               v-if="!iconFailed.has(link.id)"
               :src="faviconUrl(link.url)"
               alt=""
-              class="h-4 w-4 object-contain"
+              loading="lazy"
               @error="handleIconError(link.id)"
             />
-            <span v-else class="font-serif text-sm font-bold">{{ initials(link.title) }}</span>
+            <span v-else class="mono">{{ initials(link.title) }}</span>
           </span>
-          <a :href="link.url" target="_blank" rel="noopener" class="min-w-0 flex-1">
-            <span class="block truncate text-[13px] font-semibold">{{ link.title }}</span>
-            <span class="block truncate text-[11px] text-sub">{{ domainOf(link.url) }}</span>
+          <a class="vc-tile-main" :href="link.url" target="_blank" rel="noopener">
+            <span class="vc-tile-title" v-html="hl(link.title)"></span>
+            <br />
+            <span class="vc-tile-domain">{{ domainOf(link.url) }}</span>
           </a>
-          <button class="edit-badge" title="编辑" @click="openEdit(link)">
+          <button class="tile-action-btn" title="编辑" @click="openEdit(link)">
             <span v-html="ICON_EDIT"></span>
           </button>
-        </li>
-      </ul>
-      <p v-else class="py-2 text-sm text-sub">该分类下暂无链接</p>
+        </div>
+      </div>
+      <p v-else class="nav-note">该分类下暂无链接</p>
     </section>
 
-    <div
-      v-if="modal.visible"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-5"
-      @click.self="closeModal"
-    >
-      <div class="w-full max-w-md rounded-2xl border border-hairline bg-card p-6 shadow-2xl">
-        <h3 class="mb-4 text-lg font-semibold">{{ modal.mode === 'add' ? '新增' : '编辑链接' }}</h3>
-
-        <div v-if="modal.mode === 'add'" class="mb-4 flex gap-1 rounded-xl bg-paper-soft p-1">
+    <div v-if="modal.visible" class="modal-mask" @click.self="closeModal">
+      <div class="modal">
+        <div class="modal-head">
+          <h3>{{ modal.mode === 'add' ? '新增' : '编辑链接' }}</h3>
+        </div>
+        <div v-if="modal.mode === 'add'" class="modal-tabs">
           <button
             type="button"
-            class="flex-1 rounded-lg py-1.5 text-sm text-sub"
-            :class="modal.tab === 'category' ? 'tab-active' : ''"
+            class="modal-tab"
+            :class="{ active: modal.tab === 'category' }"
             @click="modal.tab = 'category'"
           >
             新建分类
           </button>
           <button
             type="button"
-            class="flex-1 rounded-lg py-1.5 text-sm text-sub"
-            :class="modal.tab === 'link' ? 'tab-active' : ''"
+            class="modal-tab"
+            :class="{ active: modal.tab === 'link' }"
             @click="modal.tab = 'link'"
           >
             新建链接
@@ -316,44 +310,43 @@ onMounted(loadData)
 
         <form @submit.prevent="save">
           <template v-if="modal.tab === 'category'">
-            <label class="mb-1 block text-sm text-sub">分类名称</label>
-            <input v-model="categoryForm.name" type="text" placeholder="例如：图片生成" class="input-field" />
+            <div class="field">
+              <label>分类名称</label>
+              <input v-model="categoryForm.name" type="text" placeholder="例如：图片生成" />
+            </div>
           </template>
           <template v-else>
-            <label class="mb-1 block text-sm text-sub">标题</label>
-            <input v-model="linkForm.title" type="text" placeholder="链接名称" class="input-field" />
-            <label class="mb-1 mt-3 block text-sm text-sub">URL</label>
-            <input v-model="linkForm.url" type="url" placeholder="https://" class="input-field" />
-            <label class="mb-1 mt-3 block text-sm text-sub">描述（可选）</label>
-            <input v-model="linkForm.description" type="text" class="input-field" />
-            <label class="mb-1 mt-3 block text-sm text-sub">分类</label>
-            <select v-model="linkForm.category_id" class="input-field">
-              <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-            </select>
-            <label class="mt-3 flex items-center gap-2 text-sm text-sub">
+            <div class="field">
+              <label>标题</label>
+              <input v-model="linkForm.title" type="text" placeholder="链接名称" />
+            </div>
+            <div class="field">
+              <label>URL</label>
+              <input v-model="linkForm.url" type="url" placeholder="https://" />
+            </div>
+            <div class="field">
+              <label>描述（可选）</label>
+              <input v-model="linkForm.description" type="text" />
+            </div>
+            <div class="field">
+              <label>分类</label>
+              <select v-model="linkForm.category_id">
+                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
+              </select>
+            </div>
+            <label class="check-row">
               <input v-model="linkForm.is_pinned" type="checkbox" /> 置顶
             </label>
           </template>
 
-          <p v-if="formError" class="mt-3 rounded bg-red-soft px-3 py-2 text-sm text-red">{{ formError }}</p>
+          <p v-if="formError" class="nav-note nav-error">{{ formError }}</p>
 
-          <div class="mt-5 flex items-center justify-between gap-2">
-            <button
-              v-if="modal.mode === 'edit'"
-              type="button"
-              class="rounded border border-red/40 px-4 py-2 text-sm text-red hover:bg-red-soft"
-              @click="deleteEditingLink"
-            >
+          <div class="modal-foot">
+            <button v-if="modal.mode === 'edit'" type="button" class="btn btn-danger" @click="deleteEditingLink">
               删除
             </button>
-            <div class="flex flex-1 justify-end gap-2">
-              <button type="button" class="rounded border border-hairline px-4 py-2 text-sm" @click="closeModal">
-                取消
-              </button>
-              <button type="submit" class="rounded bg-teal px-4 py-2 text-sm text-white hover:bg-teal-dark">
-                保存
-              </button>
-            </div>
+            <button type="button" class="btn" @click="closeModal">取消</button>
+            <button type="submit" class="btn btn-primary">保存</button>
           </div>
         </form>
       </div>
@@ -362,44 +355,151 @@ onMounted(loadData)
 </template>
 
 <style scoped>
-.icon-wrap {
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  overflow: hidden;
-  background: var(--bg, #e7f1ef);
-  color: var(--fg, #0a6a63);
-  border: 1px solid var(--hairline);
+.page {
+  --paper: #f7f5f1;
+  --paper-soft: #f4f1ea;
+  --card: #fffefc;
+  --hairline: #e9e3d9;
+  --ink: #2b2622;
+  --sub: #7c7468;
+  --teal: #0e7c74;
+  --teal-dark: #0a6a63;
+  --teal-soft: #e7f1ef;
+  --amber: #b7791f;
+  --amber-soft: #faf1dd;
+  --red: #c4533a;
+  --red-soft: #f9ebe5;
+  --serif: "Songti SC", "STSong", SimSun, serif;
+  --sans: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 40px 28px 90px;
 }
-.chip {
+
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
+  font-weight: 700;
+  margin: 0;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+button {
+  font: inherit;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+.search {
+  width: 100%;
   border: 1px solid var(--hairline);
-  border-radius: 999px;
+  border-radius: 10px;
   background: var(--card);
-  transition: border-color 0.14s ease, background 0.14s ease;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--ink);
 }
-.chip:hover {
+.search::placeholder {
+  color: var(--sub);
+}
+.search:focus {
   border-color: var(--teal);
-  background: var(--teal-soft);
+  outline: none;
+  box-shadow: 0 0 0 3px var(--teal-soft);
 }
-.chip-main {
+.sec-title {
+  font-size: 17px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px 8px 10px;
 }
-.chip-title {
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-}
-.count-badge {
-  border-radius: 999px;
-  background: var(--paper-soft);
-  color: var(--sub);
+.count {
+  font-family: var(--sans);
   font-size: 12px;
+  font-weight: 500;
+  color: var(--sub);
+  background: var(--paper-soft);
+  border-radius: 999px;
   padding: 1px 9px;
 }
-.btn-add {
+.nav-note {
+  color: var(--sub);
+  font-size: 14px;
+  margin: 0 0 16px;
+}
+.nav-error {
+  color: var(--red);
+  background: var(--red-soft);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.tile-icon {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--bg, var(--teal-soft));
+  color: var(--fg, var(--teal-dark));
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+}
+.tile-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+.tile-icon .mono {
+  font-family: var(--serif);
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1;
+}
+.tile-icon .fallback {
+  display: grid;
+  place-items: center;
+}
+
+.vc-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(247, 245, 241, 0.92);
+  backdrop-filter: blur(6px);
+  padding: 16px 0;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+.vc-bar h1 {
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+.vc-bar-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+.vc-bar .search {
+  width: 320px;
+}
+.vc-bar-actions {
+  display: flex;
+  gap: 10px;
+}
+.icon-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -412,15 +512,132 @@ onMounted(loadData)
   font-weight: 500;
   transition: background 0.12s ease;
 }
-.btn-add:hover {
+.icon-btn-primary:hover {
   background: var(--teal-dark);
 }
-.btn-add svg {
+.icon-btn-primary svg {
   width: 18px;
   height: 18px;
   display: block;
 }
-.edit-badge {
+
+.vc-section {
+  margin-bottom: 26px;
+}
+.vc-strip {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 12px 2px 16px;
+  margin-top: 8px;
+}
+.vc-chip {
+  position: relative;
+  flex-shrink: 0;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  padding: 8px 14px 8px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+.vc-chip:hover {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+.vc-chip-main {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.vc-chip .tile-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.vc-chip .tile-icon img {
+  width: 14px;
+  height: 14px;
+}
+.vc-chip .mono {
+  font-size: 11px;
+}
+.vc-chip-title {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.vc-band {
+  margin-bottom: 8px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--hairline);
+}
+.vc-band-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.vc-band-head h2 {
+  font-size: 16px;
+}
+.vc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+.vc-tile {
+  position: relative;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 11px;
+  padding: 11px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.vc-tile:hover {
+  border-color: var(--teal);
+  background: var(--teal-soft);
+}
+.vc-tile .tile-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+.vc-tile .tile-icon img {
+  width: 15px;
+  height: 15px;
+}
+.vc-tile .mono {
+  font-size: 12px;
+}
+.vc-tile-main {
+  min-width: 0;
+  flex: 1;
+}
+.vc-tile-title {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.vc-tile-domain {
+  font-size: 11px;
+  color: var(--sub);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-action-btn {
   position: absolute;
   top: -7px;
   right: -5px;
@@ -436,27 +653,79 @@ onMounted(loadData)
   opacity: 0;
   transition: opacity 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
-.edit-badge svg {
+.tile-action-btn svg {
   width: 12px;
   height: 12px;
   display: block;
   transform: translateX(-1px);
 }
-.edit-badge:hover {
+.tile-action-btn:hover {
   color: var(--teal);
   border-color: var(--teal);
 }
-.group:hover .edit-badge,
-.group:focus-within .edit-badge {
+.vc-tile:hover .tile-action-btn,
+.vc-tile:focus-within .tile-action-btn,
+.vc-chip:hover .tile-action-btn,
+.vc-chip:focus-within .tile-action-btn {
   opacity: 1;
 }
-.tab-active {
+
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(43, 38, 34, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal {
+  width: 100%;
+  max-width: 420px;
+  background: var(--card);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 16px 40px rgba(43, 38, 34, 0.18);
+}
+.modal-head h3 {
+  font-size: 18px;
+  margin-bottom: 14px;
+}
+.modal-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--paper-soft);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 16px;
+}
+.modal-tab {
+  flex: 1;
+  padding: 7px 0;
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--sub);
+  text-align: center;
+}
+.modal-tab.active {
   background: var(--card);
   color: var(--teal-dark);
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(43, 38, 34, 0.08);
 }
-.input-field {
+.field {
+  margin-bottom: 12px;
+}
+.field label {
+  display: block;
+  font-size: 13px;
+  color: var(--sub);
+  margin-bottom: 5px;
+}
+.field input,
+.field select {
   width: 100%;
   border: 1px solid var(--hairline);
   border-radius: 10px;
@@ -465,9 +734,85 @@ onMounted(loadData)
   font-size: 14px;
   color: var(--ink);
 }
-.input-field:focus {
+.field input:focus,
+.field select:focus {
   border-color: var(--teal);
   outline: none;
   box-shadow: 0 0 0 3px var(--teal-soft);
+}
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--sub);
+  margin-bottom: 16px;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.btn {
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--card);
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--ink);
+}
+.btn:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.btn-primary {
+  background: var(--teal);
+  border-color: var(--teal);
+  color: #fff;
+}
+.btn-primary:hover {
+  background: var(--teal-dark);
+  color: #fff;
+}
+.btn-danger {
+  border-color: var(--red);
+  color: var(--red);
+  margin-right: auto;
+}
+.btn-danger:hover {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+.vc-tile-title :deep(mark.hl),
+.vc-chip-title :deep(mark.hl) {
+  background: var(--amber-soft);
+  color: var(--amber);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+@media (max-width: 880px) {
+  .vc-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .vc-bar-main {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .vc-bar .search {
+    width: 100%;
+  }
+  .vc-bar-actions {
+    justify-content: flex-end;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }
 </style>

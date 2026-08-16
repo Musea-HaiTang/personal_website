@@ -249,6 +249,7 @@ personal_website/
 **导航页改版（2026-08-16，issue #3）**
 - 原型定稿（`design-mockups/nav/index.html`，C「书签墙」单变体，已去掉 A/B 与切换条）：顶部固定搜索栏（搜索标题、分类或网址，支持分类名匹配）；顶栏「新增」图标+文字按钮，点击弹出新建分类/新建链接弹窗；「常用」置顶胶囊条（仅网站图标，加载失败回退地球图标，右上角悬停编辑角标）；分类分带密集铺开，分类头只有名称+数量；磁贴悬停右上角单个编辑图标（编辑/删除合并入口，悬停淡入动画）。
 - favicon 方案（用户确认）：后端抓取一次缓存成本地文件（`backend/data/favicons/`），TTL 7 天刷新，不再用 Google 动态获取。
-- 实现：后端 `app/services/favicon.py`（抓取 → 本地缓存，TTL 7 天，旧缓存兜底）+ `GET /api/nav/favicons?domain=`；前端 `NavView.vue` 书签墙（搜索 / 新增弹窗 / 常用胶囊 / 磁贴编辑合并入口）。
+- 实现：后端 `app/services/favicon.py`（抓取 → 本地缓存，TTL 7 天，旧缓存兜底）+ `GET /api/nav/favicons?domain=`；前端 `NavView.vue` 样式与定稿样板 HTML 完全一致（CSS 原样搬入，含搜索高亮、新增弹窗、编辑角标）。
+- 示例数据：已导入样板分类与网址（图片生成 / 写作助手 / 开发工具 / 日常，共 13 个链接），用户可自行调整。
 - 验证：`pytest` 6 项通过（nav + favicon）；`npm run build` 通过；真实抓取 github.com favicon 缓存成功（image/x-icon）。
 - 待办：双轴 code-review → 关闭 issue #3 → 推送 main。
