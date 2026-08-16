@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>日记详情 + 删除 · 原型（A 弹窗 / B 抽屉 / C 展开）</title>
+<style>
+  :root {
+    --hairline: #e9e3d9;
+    --card: #fffefc;
+    --paper-soft: #f4f1ea;
+    --sub: #7c7468;
+    --ink: #2b2622;
+    --teal: #0e7c74;
+    --teal-dark: #0a6a63;
+    --teal-soft: #e7f1ef;
+    --amber: #b7791f;
+    --amber-soft: #faf1dd;
+    --amber-line: #e8d6a8;
+    --red: #c4533a;
+    --red-soft: #f9ebe5;
+    --kai: "KaiTi", "STKaiti", "Kaiti SC", "楷体", serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper-soft);
+    color: var(--ink);
+    font-family: "Songti SC", "STSong", SimSun, serif;
+  }
+  .page { max-width: 820px; margin: 0 auto; padding: 28px 20px; }
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .topbar h2 { font-size: 26px; margin: 0; margin-right: auto; }
+  .btn {
+    border: 1px solid var(--hairline);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--teal); color: var(--teal); }
+  .btn.danger { color: var(--red); border-color: var(--red); }
+  .btn.teal { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .hint { color: var(--sub); font-size: 13px; background: var(--card); border: 1px dashed var(--hairline); border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; }
+
+  /* ---------- 历史列表（宿主页面，三个变体共用） ---------- */
+  .overlay {
+    position: fixed; inset: 0; background: rgba(43, 38, 34, 0.45);
+    display: flex; align-items: flex-start; justify-content: center;
+    z-index: 50; padding: 7vh 24px 24px;
+  }
+  .hidden { display: none !important; }
+  .modal {
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(43, 38, 34, 0.32);
+    width: min(780px, 100%); max-height: 84vh;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .m-head { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--hairline); }
+  .m-head h3 { font-size: 18px; margin: 0; margin-right: auto; }
+  .tabs { display: flex; gap: 8px; padding: 12px 20px 0; }
+  .tab { border: 1px solid var(--hairline); background: var(--card); color: var(--sub); border-radius: 999px; padding: 5px 14px; font-size: 13px; font-family: inherit; cursor: pointer; }
+  .tab.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .m-body { flex: 1; overflow: auto; padding: 14px 20px 20px; }
+  .search { width: 100%; border: 1px solid var(--hairline); border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit; outline: none; margin-bottom: 12px; }
+  .timeline { display: flex; flex-direction: column; gap: 9px; }
+  .tl {
+    display: flex; gap: 12px; align-items: center;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 10px;
+    padding: 11px 14px; cursor: pointer; transition: border-color .12s, box-shadow .12s;
+  }
+  .tl:hover { border-color: var(--teal); box-shadow: 0 3px 10px rgba(43,38,34,.08); }
+  .tl.flash { background: var(--amber-soft); border-color: var(--amber-line); }
+  .tl.flash:hover { border-color: var(--amber); }
+  .tl .when { width: 92px; flex-shrink: 0; font-size: 12px; color: var(--sub); }
+  .tl .body { flex: 1; min-width: 0; }
+  .tl .body .tt { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tl .body .ex { font-size: 12px; color: var(--sub); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tl .kind { font-size: 11px; color: var(--teal); background: var(--teal-soft); border-radius: 999px; padding: 1px 8px; flex-shrink: 0; }
+  .tl.flash .kind { color: var(--amber); background: rgba(255,255,255,.6); }
+  .tl .open-mark { color: var(--sub); font-size: 12px; flex-shrink: 0; }
+  .none { color: var(--sub); font-size: 13px; text-align: center; padding: 24px 0; }
+  .tag { background: var(--paper-soft); color: var(--sub); border-radius: 999px; padding: 1px 8px; font-size: 11px; }
+
+  /* ---------- 变体 A：居中详情弹窗 ---------- */
+  .detail-overlay {
+    position: fixed; inset: 0; background: rgba(43, 38, 34, 0.45);
+    display: flex; align-items: center; justify-content: center; z-index: 60; padding: 24px;
+  }
+  .detail-card {
+    width: min(460px, 100%); max-height: 82vh; display: flex; flex-direction: column;
+    border-radius: 12px; box-shadow: 0 24px 70px rgba(43, 38, 34, 0.4);
+    position: relative;
+    font-family: var(--kai); background: #fdfbf7; border: 1px solid var(--hairline);
+  }
+  .detail-card.flash {
+    background: var(--amber-soft);
+    border: 1px solid var(--amber-line);
+    border-radius: 5px;
+    box-shadow: 4px 6px 14px rgba(43, 38, 34, 0.15);
+    font-family: "Songti SC", "STSong", SimSun, serif;
+  }
+  .detail-card.flash::before {
+    content: "";
+    position: absolute;
+    top: -9px;
+    left: 50%;
+    transform: translateX(-50%) rotate(1deg);
+    width: 76px;
+    height: 16px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--amber-line);
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+    z-index: 2;
+  }
+  .detail-card.flash .d-head { padding-top: 22px; }
+  .d-head { position: relative; padding: 18px 24px 12px; }
+  .d-head::after {
+    content: "记"; position: absolute; top: 12px; right: 20px; width: 26px; height: 26px;
+    background: var(--teal); color: #fff; font-size: 15px; display: flex; align-items: center; justify-content: center;
+    border-radius: 5px; transform: rotate(-4deg); box-shadow: 0 1px 2px rgba(43,38,34,.18);
+  }
+  .d-title { font-size: 19px; font-weight: 700; margin: 0 0 4px; padding-right: 44px; }
+  .d-date { font-size: 12px; color: var(--sub); }
+  .detail-card.flash .d-title { color: var(--amber); }
+  .detail-card.flash .d-date { color: var(--amber); }
+  .d-tags { display: flex; gap: 6px; padding: 8px 24px 10px; flex-wrap: wrap; }
+  .d-tags .tag { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal); }
+  .detail-card.flash .d-tags .tag { background: rgba(255,255,255,.6); color: var(--amber); border-color: var(--amber-line); }
+  .detail-card.flash .d-head::after { display: none; }
+  .d-body {
+    flex: 1; overflow: auto; padding: 8px 24px 18px; white-space: pre-wrap; line-height: 1.9; font-size: 15px;
+    min-height: 260px;
+    background: repeating-linear-gradient(to bottom, transparent 0 29px, #ece7da 29px 30px);
+  }
+  .detail-card.flash .d-body { background: none; font-size: 17px; min-height: 240px; }
+  .d-actions { display: flex; justify-content: flex-end; gap: 8px; align-items: center; padding: 12px 22px; border-top: 1px dashed var(--hairline); }
+  .detail-card.flash .d-actions { border-top-color: var(--amber-line); }
+
+  /* ---------- 变体 B：右侧抽屉 ---------- */
+  .drawer-backdrop { position: fixed; inset: 0; background: rgba(43, 38, 34, 0.35); z-index: 60; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(400px, 92vw); z-index: 61;
+    background: var(--card); border-left: 1px solid var(--hairline);
+    box-shadow: -18px 0 50px rgba(43, 38, 34, 0.25);
+    display: flex; flex-direction: column; transform: translateX(0);
+  }
+  .drawer .dr-head { display: flex; align-items: center; gap: 10px; padding: 16px 20px; border-bottom: 1px solid var(--hairline); }
+  .dr-kind { font-size: 11px; color: var(--teal); background: var(--teal-soft); border-radius: 999px; padding: 1px 8px; }
+  .dr-title { font-size: 16px; font-weight: 700; margin: 0; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dr-body { flex: 1; overflow: auto; padding: 18px 20px; white-space: pre-wrap; line-height: 1.9; font-size: 15px; }
+  .dr-date { font-size: 12px; color: var(--sub); padding: 0 20px 12px; margin-top: -6px; }
+  .dr-tags { display: flex; gap: 6px; padding: 0 20px 14px; flex-wrap: wrap; }
+  .dr-actions { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--hairline); }
+
+  /* ---------- 变体 C：列表内展开 ---------- */
+  .tl-wrap { display: flex; flex-direction: column; gap: 9px; }
+  .tl.open { border-color: var(--teal); }
+  .tl.flash.open { border-color: var(--amber); }
+  .tl-wrap .expanded {
+    margin-top: -3px; border: 1px solid var(--hairline); border-top: none; border-radius: 0 0 10px 10px;
+    background: var(--card); padding: 4px 16px 14px; font-size: 14px; line-height: 1.8;
+  }
+  .tl-wrap.flash-item .expanded { background: var(--amber-soft); border-color: var(--amber-line); }
+  .expanded .ex-full { white-space: pre-wrap; margin: 10px 0 12px; }
+  .expanded .ex-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .expanded .ex-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+  /* ---------- 提示 toast ---------- */
+  #toast {
+    position: fixed; bottom: 76px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 16px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 99;
+  }
+  #toast.show { opacity: 1; }
+
+  /* ---------- 原型切换条 ---------- */
+  #switcher {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 100;
+    display: flex; align-items: center; gap: 12px;
+    background: var(--ink); color: #fff; border-radius: 999px; padding: 8px 14px;
+    font-size: 13px; box-shadow: 0 6px 20px rgba(0,0,0,.3);
+  }
+  #switcher button { background: none; border: none; color: #fff; font-size: 18px; cursor: pointer; padding: 0 4px; }
+  #switcher .keys { color: rgba(255,255,255,.55); font-size: 11px; }
+  #stateLine {
+    position: fixed; bottom: 22px; left: 16px; z-index: 100;
+    background: var(--card); border: 1px solid var(--hairline); border-radius: 999px;
+    color: var(--sub); font-size: 12px; padding: 5px 12px; box-shadow: 0 3px 10px rgba(0,0,0,.08);
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <h2>日记</h2>
+    <button class="btn" id="openHist">📒 往日记录</button>
+  </div>
+  <div class="hint">
+    原型目标：往日记录里的日记 / 闪念可点开查看详情，并在详情里删除（带确认）。
+    三种形态用底部切换条或 ← → 键切换：<b>A 居中弹窗</b> · <b>B 右侧抽屉</b> · <b>C 列表内展开</b>。
+  </div>
+</div>
+
+<!-- 宿主：往日记录弹窗（三变体共用） -->
+<div id="histOverlay" class="overlay hidden">
+  <div class="modal">
+    <div class="m-head">
+      <h3>往日记录</h3>
+      <button class="btn" id="closeHist">关闭</button>
+    </div>
+    <div class="tabs" id="tabs">
+      <button class="tab active" data-tab="all">全部</button>
+      <button class="tab" data-tab="diary">日记</button>
+      <button class="tab" data-tab="flash">闪念</button>
+    </div>
+    <div class="m-body">
+      <input class="search" id="search" placeholder="搜索标题 / 标签 / 内容…">
+      <div class="timeline" id="timeline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 变体 A：详情弹窗 -->
+<div id="detailOverlay" class="detail-overlay hidden">
+  <div class="detail-card" id="detailCard">
+    <div class="d-head">
+      <h4 class="d-title" id="dTitle"></h4>
+      <div class="d-date" id="dDate"></div>
+    </div>
+    <div class="d-tags" id="dTags"></div>
+    <div class="d-body" id="dBody"></div>
+    <div class="d-actions">
+      <button class="btn danger" id="dDelete">删除</button>
+      <button class="btn" id="dClose">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 变体 B：抽屉 -->
+<div id="drawerWrap" class="hidden">
+  <div class="drawer-backdrop" id="drBackdrop"></div>
+  <aside class="drawer">
+    <div class="dr-head">
+      <span class="dr-kind" id="drKind"></span>
+      <h4 class="dr-title" id="drTitle"></h4>
+      <button class="btn" id="drClose">✕</button>
+    </div>
+    <div class="dr-date" id="drDate"></div>
+    <div class="dr-tags" id="drTags"></div>
+    <div class="dr-body" id="drBody"></div>
+    <div class="dr-actions">
+      <button class="btn danger" id="drDelete">删除</button>
+      <button class="btn" id="drCancel">关闭</button>
+    </div>
+  </aside>
+</div>
+
+<div id="toast"></div>
+<div id="stateLine"></div>
+<div id="switcher">
+  <button id="prev" title="上一个变体">‹</button>
+  <span id="variantLabel">A — 居中弹窗</span>
+  <button id="next" title="下一个变体">›</button>
+  <span class="keys">← → 切换</span>
+</div>
+
+<script>
+/* 原型数据：仅内存，不持久化（PROTOTYPE — wipe me） */
+let state = {
+  diaries: [
+    { id: 1, date: '2026-08-16', title: '日记页删除功能', tags: ['网站', '功能'], content: '今天给日记页补上删除能力：\n\n- 往日记录里的日记、闪念可以点开看详情\n- 详情里可以直接删除（带确认）' },
+    { id: 2, date: '2026-08-15', title: '导航页定稿', tags: ['网站'], content: '书签墙视觉改版定稿，favicon 本地缓存方案确认。\n\n明天开始收尾整体验收。' },
+    { id: 3, date: '2026-08-14', title: '第一篇', tags: ['生活'], content: '# 你好\n\n项目骨架搭完，今天开始写日记。' }
+  ],
+  flashes: [
+    { id: 101, created_at: '2026-08-16T09:12:00', content: '往日记录的删除入口要放在详情里，别放在列表上，避免误删。' },
+    { id: 102, created_at: '2026-08-16T08:30:00', content: '今天下午跑 5 公里' },
+    { id: 103, created_at: '2026-08-15T22:40:00', content: '周末想去书店买本设计书' },
+    { id: 104, created_at: '2026-08-14T14:05:00', content: '信纸横线可以用 repeating-linear-gradient 画' }
+  ],
+  tab: 'all',
+  query: '',
+  openId: null,      // 变体 C 当前展开的条目 id
+  detailId: null     // 变体 A / B 当前查看的条目 id
+};
+
+const VARIANTS = [
+  { key: 'A', name: '居中弹窗', mode: 'modal' },
+  { key: 'B', name: '右侧抽屉', mode: 'drawer' },
+  { key: 'C', name: '列表内展开', mode: 'inline' }
+];
+
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+function allItems() {
+  return [
+    ...state.diaries.map((d) => ({ id: d.id, kind: 'diary', sort: d.date + 'T00:00:00', label: fmt(d.date), title: d.title, tags: d.tags, excerpt: d.content.replace(/\s+/g, ' ').trim().slice(0, 60), full: d.content })),
+    ...state.flashes.map((f) => {
+      const s = f.created_at;
+      return { id: f.id, kind: 'flash', sort: s, label: s.slice(5, 10).replace('-', '/') + ' ' + s.slice(11, 16), title: f.content, tags: [], excerpt: '', full: f.content };
+    })
+  ].sort((a, b) => b.sort.localeCompare(a.sort));
+}
+
+function fmt(d) { const [y, m, dd] = d.split('-'); return y + '.' + m + '.' + dd; }
+function stripTags(s) { return (s || '').replace(/^#\s*/gm, ''); }
+
+function renderTimeline() {
+  const q = state.query.trim().toLowerCase();
+  const items = allItems().filter((it) =>
+    (state.tab === 'all' || it.kind === state.tab) &&
+    (!q || (it.title + ' ' + (it.excerpt || '') + ' ' + (it.tags || []).join(' ')).toLowerCase().includes(q))
+  );
+  const wrap = document.createElement('div');
+  wrap.className = 'timeline';
+  for (const it of items) {
+    const row = document.createElement('div');
+    row.className = 'tl ' + (it.kind === 'flash' ? 'flash' : '') + (state.openId === it.id ? ' open' : '');
+    row.innerHTML =
+      '<span class="when">' + esc(it.label) + '</span>' +
+      '<div class="body"><div class="tt">' + esc(it.title) + '</div>' +
+      (it.excerpt ? '<div class="ex">' + esc(it.excerpt) + '</div>' : '') +
+      (it.tags && it.tags.length ? '<div class="tags-row" style="margin-top:4px">' + it.tags.map((t) => '<span class="tag">' + esc(t) + '</span>').join('') + '</div>' : '') +
+      '</div>' +
+      '<span class="kind">' + (it.kind === 'flash' ? '闪念' : '日记') + '</span>' +
+      (current().mode === 'inline' ? '<span class="open-mark">' + (state.openId === it.id ? '▾' : '▸') + '</span>' : '');
+    row.addEventListener('click', () => {
+      const mode = current().mode;
+      if (mode === 'inline') {
+        state.openId = state.openId === it.id ? null : it.id;
+        renderTimeline();
+      } else {
+        state.detailId = it.id;
+        if (mode === 'modal') openModalDetail(it);
+        else openDrawerDetail(it);
+      }
+    });
+    wrap.appendChild(row);
+    if (state.openId === it.id && current().mode === 'inline') {
+      const ex = document.createElement('div');
+      ex.className = 'expanded';
+      ex.innerHTML =
+        (it.tags && it.tags.length ? '<div class="ex-tags">' + it.tags.map((t) => '<span class="tag">' + esc(t) + '</span>').join('') + '</div>' : '') +
+        '<div class="ex-full">' + esc(stripTags(it.full)) + '</div>' +
+        '<div class="ex-actions"><button class="btn danger ex-del">删除</button><button class="btn ex-close">收起</button></div>';
+      ex.querySelector('.ex-del').addEventListener('click', () => confirmDelete(it));
+      ex.querySelector('.ex-close').addEventListener('click', () => { state.openId = null; renderTimeline(); });
+      wrap.appendChild(ex);
+    }
+  }
+  if (!items.length) {
+    const none = document.createElement('p');
+    none.className = 'none';
+    none.textContent = '没有符合条件的记录';
+    wrap.appendChild(none);
+  }
+  $('#timeline').replaceWith(wrap);
+  wrap.id = 'timeline';
+  renderState();
+}
+
+function openModalDetail(it) {
+  $('#detailCard').className = 'detail-card' + (it.kind === 'flash' ? ' flash' : '');
+  $('#dTitle').textContent = it.kind === 'flash' ? '闪念' : (it.title || '无标题');
+  $('#dDate').textContent = it.label;
+  $('#dTags').innerHTML = (it.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
+  $('#dBody').textContent = stripTags(it.full);
+  $('#detailOverlay').classList.remove('hidden');
+  $('#dDelete').onclick = () => confirmDelete(it);
+  $('#dClose').onclick = closeModal;
+  $('#detailOverlay').onclick = (e) => { if (e.target === $('#detailOverlay')) closeModal(); };
+}
+function closeModal() { $('#detailOverlay').classList.add('hidden'); state.detailId = null; }
+
+function openDrawerDetail(it) {
+  $('#drKind').textContent = it.kind === 'flash' ? '闪念' : '日记';
+  $('#drTitle').textContent = it.kind === 'flash' ? it.title : (it.title || '无标题');
+  $('#drDate').textContent = it.label;
+  $('#drTags').innerHTML = (it.tags || []).map((t) => '<span class="tag">' + esc(t) + '</span>').join('');
+  $('#drBody').textContent = stripTags(it.full);
+  $('#drawerWrap').classList.remove('hidden');
+  $('#drDelete').onclick = () => confirmDelete(it);
+  $('#drClose').onclick = closeDrawer;
+  $('#drCancel').onclick = closeDrawer;
+  $('#drBackdrop').onclick = closeDrawer;
+}
+function closeDrawer() { $('#drawerWrap').classList.add('hidden'); state.detailId = null; }
+
+function confirmDelete(it) {
+  const msg = it.kind === 'flash'
+    ? '确定删除这条闪念吗？'
+    : '确定删除这篇日记吗？正文文件也会被删除。';
+  if (!confirm(msg)) return;
+  if (it.kind === 'flash') state.flashes = state.flashes.filter((f) => f.id !== it.id);
+  else state.diaries = state.diaries.filter((d) => d.id !== it.id);
+  closeModal();
+  closeDrawer();
+  state.openId = null;
+  state.detailId = null;
+  toast('已删除：' + it.title);
+  renderTimeline();
+}
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function renderState() {
+  $('#stateLine').textContent = '状态：日记 ' + state.diaries.length + ' 条 · 闪念 ' + state.flashes.length + ' 条';
+}
+
+/* ---------- 变体切换 ---------- */
+let variantIndex = 0;
+function current() { return VARIANTS[variantIndex]; }
+function setVariant(idx) {
+  variantIndex = (idx + VARIANTS.length) % VARIANTS.length;
+  const v = current();
+  $('#variantLabel').textContent = v.key + ' — ' + v.name;
+  closeModal();
+  closeDrawer();
+  state.openId = null;
+  history.replaceState(null, '', '?variant=' + v.key);
+  renderTimeline();
+}
+$('#prev').onclick = () => setVariant(variantIndex - 1);
+$('#next').onclick = () => setVariant(variantIndex + 1);
+document.addEventListener('keydown', (e) => {
+  if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key === 'ArrowLeft') setVariant(variantIndex - 1);
+  if (e.key === 'ArrowRight') setVariant(variantIndex + 1);
+});
+
+/* ---------- 宿主交互 ---------- */
+$('#openHist').onclick = () => $('#histOverlay').classList.remove('hidden');
+$('#closeHist').onclick = () => $('#histOverlay').classList.add('hidden');
+$('#histOverlay').onclick = (e) => { if (e.target === $('#histOverlay')) $('#histOverlay').classList.add('hidden'); };
+$('#tabs').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab');
+  if (!btn) return;
+  document.querySelectorAll('#tabs .tab').forEach((t) => t.classList.remove('active'));
+  btn.classList.add('active');
+  state.tab = btn.dataset.tab;
+  renderTimeline();
+});
+$('#search').addEventListener('input', (e) => { state.query = e.target.value; renderTimeline(); });
+
+/* 初始化 */
+const fromUrl = new URLSearchParams(location.search).get('variant');
+if (fromUrl) {
+  const i = VARIANTS.findIndex((v) => v.key === fromUrl.toUpperCase());
+  if (i >= 0) variantIndex = i;
+}
+renderTimeline();
+$('#variantLabel').textContent = current().key + ' — ' + current().name;
+</script>
+</body>
+</html>
