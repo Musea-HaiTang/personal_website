@@ -243,18 +243,9 @@ personal_website/
 - 每个阶段完成并验证后再进入下一阶段。
 - 全站 UI 采用「纸感」主题：米色纸底、暖白卡片、细线边框、墨绿主色、衬线大标题；色板与字体定义在 `frontend/tailwind.config.js`，后续页面统一沿用，有问题再局部调整。
 
-## 7. 工程工作流（Matt Pocock 技能套件）
+## 7. 工程工作流
 
-本仓库从需求到落地的标准流程；每个新仓库第一次使用这套技能前，先运行 `/setup-matt-pocock-skills` 完成配置（本仓库 issue tracker 为 GitHub，见 `docs/agents/issue-tracker.md`）。
-
-1. `/setup-matt-pocock-skills`：初始化仓库配置（issue tracker、domain docs 布局），生成 `docs/agents/*.md` 与根目录 `AGENTS.md` 的「## Agent skills」指引块。
-2. `/grill-me`：设计访谈，把想法问清楚、确定方案。
-3. `/prototype`：UI 类需求先做可丢弃的 HTML 原型变体（放 `design-mockups/`）供挑选与迭代；定稿后把决策固化进 plan.md / SPEC。
-4. `/to-spec`：把已确认的需求写成 SPEC，发布为 GitHub issue（本仓库为 #1），打 `ready-for-agent` 标签。
-5. `/to-tickets`：把 SPEC 拆成 tracer-bullet 纵向切片 issue（本仓库 #2–#8），每个 issue 写明 `Blocked by` 依赖。
-6. 按 frontier 顺序实现：只做没有未完成阻塞依赖的 issue；一个 issue 一个 commit，commit 消息引用 issue 号。
-7. `/code-review`：对一次改动做双轴审查（Standards 是否符合仓库规范、Spec 是否实现对应 issue 要求），通过后关闭该 issue。
-8. 全部完成后做整体验收，并同步更新 plan.md。
+标准流程（访谈 → 原型 → 规格 → 拆票 → 实现 → 双轴审查 → 收尾 → 整体验收）、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)；新仓库首次使用前先运行 `/setup-matt-pocock-skills` 完成配置（本仓库 issue tracker 为 GitHub，见 `docs/agents/issue-tracker.md`）。以下为仓库进度与迭代记录。
 
 当前进度（2026-08-16）：#2 项目骨架、#3 导航模块（含书签墙视觉改版 + favicon 后端缓存 + 日记/导航 Pinia 缓存）、#4 计划任务模块、#5 日记模块（含「便利贴闪念 + 信纸日记 + 图表」改版）、#6 番茄钟（含视觉改版 + 全局小窗计时 + 绑定任务）、#7 聚合首页（/api/dashboard + 首页四块数据）、#8 番茄绑定任务与整体验收均已确认关闭并推送 main；P0 交付完成，frontier 清空。
 

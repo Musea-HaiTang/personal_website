@@ -12,7 +12,7 @@ Single-context: read `CONTEXT.md` at the repo root and `docs/adr/` when explorin
 
 ## 工程工作流
 
-新功能 / 修复按 `plan.md` 第 7 节执行。流程技能需要显式点名才会运行（`grill-me`、`to-spec`、`to-tickets`、`setup-matt-pocock-skills` 均禁用了自动触发）；`code-review` 在用户要求 review 时自动使用。
+新功能 / 修复按 `plan.md` 第 7 节执行（标准流程、技能清单与审查纪律详见 `docs/agents/workflow.md`）。流程技能需要显式点名才会运行（`grill-me`、`to-spec`、`to-tickets`、`setup-matt-pocock-skills` 均禁用了自动触发）；`code-review` 在用户要求 review 时自动使用。
 
 - 需求未定：先 `grill-me` 访谈；UI 需求先 `prototype` 出 `design-mockups/` 原型，定稿后回写 plan.md / SPEC。
 - 需求定稿：`to-spec` 发布 SPEC（GitHub issue），`to-tickets` 拆纵向切片 ticket（标注 Blocked by）。
