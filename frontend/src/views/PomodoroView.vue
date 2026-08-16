@@ -113,7 +113,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
         </button>
       </div>
 
-      <div class="ring">
+      <div class="ring-wrap">
         <svg viewBox="0 0 320 320" width="300" height="300">
           <circle class="ring-bg" cx="160" cy="160" r="128" />
           <circle
@@ -152,7 +152,6 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
               inputmode="numeric"
               autocomplete="off"
               spellcheck="false"
-              :placeholder="String(store.modeMin)"
               aria-label="输入分钟数"
               @keydown="onEditKey"
               @blur="applyEdit"
@@ -328,13 +327,13 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   background: #3d9970;
   color: #fff;
 }
-.ring {
+.ring-wrap {
   position: relative;
   width: 300px;
   height: 300px;
   margin: 6px auto;
 }
-.ring svg {
+.ring-wrap svg {
   display: block;
   width: 100%;
   height: 100%;
