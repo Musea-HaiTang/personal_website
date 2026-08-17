@@ -338,24 +338,11 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 .topbar h2 {
-  font-family: "Songti SC", "STSong", SimSun, serif;
+  font-family: var(--serif);
   font-size: 26px;
   font-weight: 700;
   margin: 0;
   margin-right: auto;
-}
-.btn {
-  border: 1px solid var(--hairline);
-  background: var(--card);
-  color: var(--ink);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:hover {
-  border-color: var(--teal);
-  color: var(--teal);
 }
 .streak {
   background: var(--teal-soft);
@@ -398,10 +385,6 @@ onMounted(() => {
   color: var(--sub);
 }
 .error {
-  color: var(--red);
-  background: var(--red-soft);
-  border-radius: 8px;
-  padding: 8px 12px;
   font-size: 13px;
   margin-bottom: 12px;
 }
@@ -412,12 +395,6 @@ onMounted(() => {
 }
 
 /* ---------- 信纸 ---------- */
-.paper {
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(43, 38, 34, 0.05);
-}
 .letter {
   position: relative;
   display: flex;
@@ -434,38 +411,6 @@ onMounted(() => {
 }
 .clickable:hover {
   box-shadow: 0 6px 18px rgba(43, 38, 34, 0.08);
-}
-.head {
-  position: relative;
-  padding: 16px 24px 12px;
-}
-.head::before {
-  content: "";
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 0;
-  height: 1px;
-  background: #e8e2d4;
-}
-.head::after {
-  content: "记";
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  width: 26px;
-  height: 26px;
-  background: var(--teal);
-  color: #fff;
-  font-family: "Songti SC", "STSong", SimSun, serif;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-  transform: rotate(-4deg);
-  box-shadow: 0 1px 2px rgba(43, 38, 34, 0.18);
-  line-height: 1;
 }
 .page-head {
   display: flex;
@@ -805,27 +750,6 @@ onMounted(() => {
   text-align: right;
   font-size: 12px;
   color: var(--sub);
-}
-
-/* ---------- 标签 ---------- */
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: var(--teal-soft);
-  color: var(--teal);
-  border: 1px solid var(--teal);
-  border-radius: 999px;
-  padding: 2px 9px;
-  font-size: 13px;
-}
-.tag-chip button {
-  background: none;
-  border: none;
-  color: var(--teal);
-  font-size: 12px;
-  padding: 0 0 0 2px;
-  cursor: pointer;
 }
 
 @media (max-width: 820px) {
