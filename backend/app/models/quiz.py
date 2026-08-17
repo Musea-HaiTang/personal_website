@@ -18,6 +18,7 @@ class Question(Base):
     type: Mapped[str] = mapped_column(String(10), nullable=False)  # choice / fill
     title: Mapped[str] = mapped_column(Text, nullable=False)
     options: Mapped[str] = mapped_column(String(2000), default="[]", nullable=False)  # JSON 列表（choice）
+    accept: Mapped[str] = mapped_column(String(500), default="[]", nullable=False)  # JSON 列表（fill 可接受答案）
     answer: Mapped[str] = mapped_column(String(500), nullable=False)  # choice: A/B/C/D；fill: 文本
     code: Mapped[str | None] = mapped_column(Text, nullable=True)  # fill：含 ____ 的代码
     reference_answer: Mapped[str | None] = mapped_column(Text, nullable=True)

@@ -1,19 +1,21 @@
 import json
 import re
 
+from sqlalchemy import select
 import yaml
 
 from app.models.quiz import Question
 
 QUIZ_TEMPLATE = """# 技术答题题库格式文档（给 AI 生成题目时参考）
 # 必填：category、questions[].type、title；choice 必填 options（固定 4 项 A-D）与 answer（填 A/B/C/D）；fill 必填 code/answer
+# 注意：题号键必须写成 "no":，加引号，否则 YAML 会把 no 解析成布尔值
 # 分类固定写在文件顶部，整个文件一个分类；一次可导入多题
 
 # 分类固定写在文件顶部，整个文件一个分类
 category: Python
 questions:
   - type: choice          # choice=选择题（考概念）
-    no: "1.1"             # 题号，可选；留空自动编号
+    "no": "1.1"           # 题号，可选；键必须加引号；留空自动编号
     score: 5              # 分值，可选；默认 choice=5、fill=10
     title: 下面哪个是 Python 装饰器的正确理解？
     options:              # 固定 4 项，从左到右对应 A/B/C/D
@@ -26,7 +28,7 @@ questions:
       装饰器本质是接收函数并返回新函数的可调用对象。
 
   - type: fill            # fill=填空题（考代码挖空）
-    no: "1.2"
+    "no": "1.2"
     score: 10
     title: 补全装饰器：返回内部函数
     code: |
@@ -87,7 +89,7 @@ def parse_quiz_yaml(text: str) -> tuple[str, list[dict], list[str]]:
             errors.append(f"{label}：score 必须大于 0")
             continue
 
-        no = str(raw.get("no") or "").strip()
+        no = str(raw.get("no") or raw.get(False) or "").strip()
         explanation = str(raw.get("explanation") or "").strip()
         answer = ""
         options: list[str] = []
@@ -112,6 +114,7 @@ def parse_quiz_yaml(text: str) -> tuple[str, list[dict], list[str]]:
             if not answer:
                 errors.append(f"{label}：填空题缺少 answer")
                 continue
+        accept = [str(a).strip() for a in (raw.get("accept") or []) if str(a).strip()]
 
         items.append(
             {
@@ -120,6 +123,7 @@ def parse_quiz_yaml(text: str) -> tuple[str, list[dict], list[str]]:
                 "type": qtype,
                 "title": title,
                 "options": options,
+                "accept": accept,
                 "answer": answer,
                 "code": code,
                 "reference_answer": str(raw.get("reference_answer") or "").strip() or None,
@@ -135,12 +139,13 @@ def _item_key(item: dict) -> tuple[str, str]:
     return (item["category"], item["no"] or item["title"])
 
 
+def _existing_map(db) -> dict[tuple[str, str], Question]:
+    return {(q.category, q.no or q.title): q for q in db.scalars(select(Question)).all()}
+
+
 def preview_import(items: list[dict], db) -> tuple[list[str], list[str]]:
     """对照数据库，返回 (新增标题列表, 更新标题列表)。"""
-    existing: dict[tuple[str, str], Question] = {}
-    for question in db.query(Question).all():
-        existing[(question.category, question.no or question.title)] = question
-
+    existing = _existing_map(db)
     new, updated = [], []
     for item in items:
         key = _item_key(item)
@@ -153,9 +158,7 @@ def preview_import(items: list[dict], db) -> tuple[list[str], list[str]]:
 
 def apply_import(items: list[dict], db) -> tuple[int, int]:
     """写入题目：同 key 更新，否则新增。返回 (新增数, 更新数)。"""
-    existing: dict[tuple[str, str], Question] = {}
-    for question in db.query(Question).all():
-        existing[(question.category, question.no or question.title)] = question
+    existing = _existing_map(db)
 
     imported, updated = 0, 0
     for item in items:
@@ -170,6 +173,7 @@ def apply_import(items: list[dict], db) -> tuple[int, int]:
         question.type = item["type"]
         question.title = item["title"]
         question.options = json.dumps(item["options"], ensure_ascii=False)
+        question.accept = json.dumps(item["accept"], ensure_ascii=False)
         question.answer = item["answer"]
         question.code = item["code"]
         question.reference_answer = item["reference_answer"]

@@ -29,6 +29,7 @@ def _question_to_out(question: Question) -> QuestionOut:
         type=question.type,
         title=question.title,
         options=options_from_str(question.options),
+        accept=options_from_str(question.accept),
         answer=question.answer,
         code=question.code,
         reference_answer=question.reference_answer,
@@ -48,8 +49,11 @@ def _get_question_or_404(db: Session, question_id: int) -> Question:
 def _apply_payload(question: Question, data: dict) -> None:
     if "options" in data and data["options"] is not None:
         data["options"] = json.dumps(data["options"], ensure_ascii=False)
+    if "accept" in data and data["accept"] is not None:
+        data["accept"] = json.dumps(data["accept"], ensure_ascii=False)
     for key, value in data.items():
-        setattr(question, key, value)
+        if value is not None:
+            setattr(question, key, value)
 
 
 @router.get("/questions", response_model=list[QuestionOut])
@@ -73,6 +77,7 @@ def create_question(payload: QuestionCreate, db: Session = Depends(get_db)):
         type=payload.type,
         title=payload.title,
         options=json.dumps(payload.options, ensure_ascii=False),
+        accept=json.dumps(payload.accept, ensure_ascii=False),
         answer=payload.answer,
         code=payload.code,
         reference_answer=payload.reference_answer,

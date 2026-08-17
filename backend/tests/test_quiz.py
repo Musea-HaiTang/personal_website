@@ -20,7 +20,7 @@ VALID_YAML = """
 category: Python
 questions:
   - type: choice
-    no: "1.1"
+    "no": "1.1"
     score: 5
     title: 下面哪个是 Python 装饰器的正确理解？
     options:
@@ -32,7 +32,7 @@ questions:
     explanation: 装饰器本质是接收函数并返回新函数的可调用对象。
 
   - type: fill
-    no: "1.2"
+    "no": "1.2"
     score: 10
     title: 补全装饰器：返回内部函数
     code: |
@@ -41,6 +41,8 @@ questions:
               return fn(*a, **kw)
           return ____
     answer: wrap
+    accept:
+      - wrap
     explanation: 装饰器要把 wrap 返回出去替换原函数。
 """
 
@@ -62,6 +64,7 @@ def test_question_crud(client):
             "title": "测试题",
             "options": ["a", "b", "c", "d"],
             "answer": "B",
+            "accept": [],
             "score": 5,
         },
     )
@@ -91,6 +94,7 @@ def test_import_preview_and_confirm(client):
     questions = client.get("/api/quiz/questions", params={"category": "Python"}).json()
     assert len(questions) == 2
     choice = next(q for q in questions if q["type"] == "choice")
+    assert choice["no"] == "1.1"
     assert choice["options"] == [
         "装饰器是接收函数并返回新函数的可调用对象",
         "装饰器只能修饰类方法",
@@ -99,7 +103,9 @@ def test_import_preview_and_confirm(client):
     ]
     assert choice["answer"] == "A"
     fill = next(q for q in questions if q["type"] == "fill")
+    assert fill["no"] == "1.2"
     assert fill["answer"] == "wrap"
+    assert fill["accept"] == ["wrap"]
     assert "____" in fill["code"]
 
 
@@ -159,3 +165,14 @@ def test_download_template(client):
     assert resp.headers["content-type"].startswith("text/yaml")
     assert "quiz-template.yaml" in resp.headers["content-disposition"]
     assert "category: Python" in resp.text
+
+
+def test_question_update_null_fields_no_crash(client):
+    resp = client.post(
+        "/api/quiz/questions",
+        json={"category": "Python", "no": "9.9", "type": "fill", "title": "空值防御", "code": "x = ____", "answer": "1", "score": 5},
+    )
+    qid = resp.json()["id"]
+    upd = client.put(f"/api/quiz/questions/{qid}", json={"options": None, "accept": None, "explanation": None})
+    assert upd.status_code == 200
+    assert upd.json()["accept"] == []

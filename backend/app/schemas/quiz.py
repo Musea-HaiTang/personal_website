@@ -10,6 +10,7 @@ class QuestionCreate(BaseModel):
     type: str = Field(pattern="^(choice|fill)$")
     title: str = Field(min_length=1)
     options: list[str] = []
+    accept: list[str] = []
     answer: str = Field(min_length=1, max_length=500)
     code: str | None = None
     reference_answer: str | None = None
@@ -23,6 +24,7 @@ class QuestionUpdate(BaseModel):
     type: str | None = Field(default=None, pattern="^(choice|fill)$")
     title: str | None = Field(default=None, min_length=1)
     options: list[str] | None = None
+    accept: list[str] | None = None
     answer: str | None = Field(default=None, min_length=1, max_length=500)
     code: str | None = None
     reference_answer: str | None = None
@@ -39,6 +41,7 @@ class QuestionOut(BaseModel):
     type: str
     title: str
     options: list[str]
+    accept: list[str]
     answer: str
     code: str | None
     reference_answer: str | None
@@ -55,6 +58,7 @@ class ImportItem(BaseModel):
     type: str
     title: str
     options: list[str] = []
+    accept: list[str] = []
     answer: str
     code: str | None = None
     reference_answer: str | None = None
