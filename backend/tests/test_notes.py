@@ -123,3 +123,12 @@ def test_note_delete_removes_file(client):
 
 def test_note_validation(client):
     assert client.post("/api/notes", json={"title": "", "content": ""}).status_code == 422
+
+
+def test_note_update_explicit_null_no_crash(client):
+    note = _create(client, tags=["基础"], content="内容").json()
+    resp = client.put(f"/api/notes/{note['id']}", json={"tags": None, "title": None, "content": None})
+    assert resp.status_code == 200
+    assert resp.json()["tags"] == []
+    assert resp.json()["title"] == "装饰器原理"
+    assert resp.json()["content"] == "内容"

@@ -26,6 +26,17 @@ function excerpt(content, limit = 90) {
   const plain = (content || '').replace(/\s+/g, ' ').trim()
   return plain.length <= limit ? plain : plain.slice(0, limit) + '…'
 }
+function escHtml(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
+}
+function hlHtml(text) {
+  const esc = escHtml(text)
+  const kw = notesStore.kw.trim()
+  if (!kw) return esc
+  const idx = esc.toLowerCase().indexOf(kw.toLowerCase())
+  if (idx === -1) return esc
+  return esc.slice(0, idx) + '<mark class="rounded bg-amber-soft px-0.5 text-amber-dark">' + esc.slice(idx, idx + kw.length) + '</mark>' + esc.slice(idx + kw.length)
+}
 function fmtDate(ts) {
   return String(ts || '').slice(0, 10)
 }
@@ -42,6 +53,7 @@ const newTag = ref('')
 const saving = ref(false)
 
 const readerOpen = computed(() => readerId.value !== null)
+const readerNote = computed(() => notesStore.notes.find((n) => n.id === readerId.value) || null)
 
 function openReader(note) {
   readerId.value = note.id
@@ -220,7 +232,7 @@ const YAML_SAMPLE = `# 分类固定写在文件顶部，整个文件一个分类
 category: Python
 questions:
   - type: choice          # choice=选择题（考概念）
-    no: "1.1"
+    "no": "1.1"           # 键必须加引号，否则 YAML 会解析成布尔值
     score: 5
     title: 下面哪个是 Python 装饰器的正确理解？
     options:              # 固定 4 项，对应 A/B/C/D
@@ -233,7 +245,7 @@ questions:
       装饰器本质是接收函数并返回新函数的可调用对象。
 
   - type: fill            # fill=填空题（考代码挖空）
-    no: "1.2"
+    "no": "1.2"
     score: 10
     title: 补全装饰器：返回内部函数
     code: |
@@ -341,8 +353,8 @@ async function confirmImport() {
           class="flex flex-col gap-1.5 rounded-xl border border-hairline bg-card p-4 text-left hover:border-teal"
           @click="openReader(n)"
         >
-          <span class="font-medium text-ink">{{ n.title }}</span>
-          <span class="line-clamp-2 text-[12.5px] leading-relaxed text-sub">{{ excerpt(n.content) }}</span>
+          <span class="font-medium text-ink" v-html="hlHtml(n.title)"></span>
+          <span class="line-clamp-2 text-[12.5px] leading-relaxed text-sub" v-html="hlHtml(excerpt(n.content))"></span>
           <span class="text-[11px] text-sub">{{ fmtDate(n.updated_at) }} · {{ n.folder }}</span>
           <span class="flex flex-wrap gap-1">
             <span
@@ -399,7 +411,7 @@ async function confirmImport() {
           </div>
         </div>
         <div class="mt-1 flex items-center gap-2 text-xs text-sub">
-          <span>{{ readerNote.folder }} · {{ fmtDate(readerNote.updated_at) }}</span>
+          <span>{{ readerNote?.folder }} · {{ fmtDate(readerNote?.updated_at) }}</span>
           <span v-if="dirty" class="text-amber">● 未保存（Ctrl+S 保存）</span>
           <span v-else-if="savedMsg" class="text-teal">✓ {{ savedMsg }}</span>
         </div>

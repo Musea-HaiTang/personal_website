@@ -20,11 +20,6 @@ def _tags_to_list(tags_str: str) -> list[str]:
     return [tag for tag in (tags_str or "").split(",") if tag.strip()]
 
 
-def _excerpt(content: str, limit: int = 90) -> str:
-    plain = " ".join(content.split())
-    return plain if len(plain) <= limit else plain[:limit] + "…"
-
-
 def _note_to_out(note: Note) -> NoteOut:
     return NoteOut(
         id=note.id,
@@ -59,7 +54,8 @@ def list_notes(
     for note in notes:
         content = read_content(Path(note.file_path))
         if keyword:
-            hay = f"{note.title} {_tags_to_list(note.tags)} {content}".lower()
+            tags_text = " ".join(_tags_to_list(note.tags))
+            hay = f"{note.title} {tags_text} {content}".lower()
             if keyword not in hay:
                 continue
         results.append(_note_to_out(note))
@@ -132,6 +128,12 @@ def import_notes(
 def update_note(note_id: int, payload: NoteUpdate, db: Session = Depends(get_db)):
     note = _get_note_or_404(db, note_id)
     data = payload.model_dump(exclude_unset=True)
+
+    if "tags" in data and data["tags"] is None:
+        data["tags"] = ""
+    for key in ("title", "folder", "content"):
+        if data.get(key) is None:
+            data.pop(key, None)
 
     if "tags" in data and data["tags"] is not None:
         data["tags"] = _tags_to_str(data["tags"])
