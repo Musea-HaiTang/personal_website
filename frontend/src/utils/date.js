@@ -28,3 +28,7 @@ export function isoWeek(dateStr) {
 export const today = localDateStr()
 export const weekStart = weekStartOf(today)
 export const weekEnd = addDays(weekStart, 6)
+
+export function fmtDate(ts) {
+  return String(ts || '').slice(0, 10)
+}
