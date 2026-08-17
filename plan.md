@@ -30,7 +30,7 @@ personal_website/
 │   │   ├── models/                # tasks / diary / flash / notes / quiz / nav / pomodoro
 │   │   ├── schemas/               # Pydantic 请求/响应模型
 │   │   ├── routers/               # HTTP 层：参数与响应模型
-│   │   └── services/              # 业务规则与文件读写（tasks/diary/notes/quiz/favicon/tags/dashboard）
+│   │   └── services/              # 业务规则 / 文件仓库 / 搜索（tasks/diary/notes/quiz/favicon/tags/markdown_store/search/dashboard）
 │   ├── tests/                     # pytest，独立 SQLite
 │   ├── data/                      # SQLite + 日记/笔记 Markdown + favicon 缓存
 │   └── requirements.txt
@@ -82,6 +82,7 @@ personal_website/
 ### 3.5 后端分层约定
 
 - Router 只做 HTTP 参数与响应模型；业务规则（任务联动、顺延、周导出、笔记改名移文件、题库导入、聚合）收进各自 service。
+- 文件读写统一走 `MarkdownStore`（`services/markdown_store.py`，日记/笔记各一个实例）；关键词搜索收在 `services/search.py` 接缝，P1 向量检索在此替换实现，调用方不变。
 - 前端数据流：视图编排、Pinia store 管数据；弹窗拆独立组件，共享 `BaseModal` 与 `utils/highlight.js`。
 
 ## 4. 功能现状
@@ -153,6 +154,7 @@ personal_website/
 - 架构整理 A：后端业务下沉 service（tags/tasks/diary/notes/quiz/dashboard），router 只留 HTTP 层。
 - 架构整理 B：前端视图拆分——新增 `BaseModal` 与 `utils/highlight.js`，Plans/Nav/Diary/Notes 弹窗全部拆成独立组件，API 调用下沉 Pinia store。
 - 架构整理 C：CSS 三层架构——全局主题令牌 + `@layer components` 公共类 + 页面专属 scoped；删除 7 个文件局部变量，把约 2,300 行自定义样式中重复的公共类收进全局层，番茄钟/计划页硬编码色值统一换变量（见 3.4 节）。
+- 后端架构整理（C/D/E）：`MarkdownStore` 合并日记/笔记两套文件读写（删除 diary_files/note_files，消除重复）；新增 `services/search.py` 搜索接缝，日记/笔记列表检索改走 `matches()`，P1 向量检索在此替换；聚合去重复核完成（dashboard 复用 `task_to_out` 与 `tags.to_list`，无残留重复转换）。验证：pytest 53 项通过。
 
 ### 2026-08-16：P0 收尾
 
