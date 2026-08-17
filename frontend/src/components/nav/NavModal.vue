@@ -156,9 +156,6 @@ async function deleteEditingLink() {
 .modal {
   width: 100%;
   max-width: 420px;
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
   padding: 22px;
   box-shadow: 0 16px 40px rgba(43, 38, 34, 0.18);
 }
@@ -228,45 +225,17 @@ async function deleteEditingLink() {
   justify-content: flex-end;
   gap: 10px;
 }
-.btn {
-  border: 1px solid var(--hairline);
+.modal .btn {
   border-radius: 10px;
-  background: var(--card);
   padding: 8px 16px;
   font-size: 14px;
-  color: var(--ink);
-}
-.btn:hover {
-  border-color: var(--teal);
-  color: var(--teal);
-}
-.btn-primary {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #fff;
-}
-.btn-primary:hover {
-  background: var(--teal-dark);
-  color: #fff;
 }
 .btn-danger {
-  border-color: var(--red);
-  color: var(--red);
   margin-right: auto;
-}
-.btn-danger:hover {
-  background: var(--red-soft);
-  color: var(--red);
 }
 .nav-note {
   color: var(--sub);
   font-size: 14px;
   margin: 0 0 16px;
-}
-.nav-error {
-  color: var(--red);
-  background: var(--red-soft);
-  border-radius: 8px;
-  padding: 8px 12px;
 }
 </style>

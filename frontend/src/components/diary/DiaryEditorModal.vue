@@ -95,22 +95,6 @@ function submit() {
 </template>
 
 <style scoped>
-.edit-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(43, 38, 34, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
-  padding: 24px;
-}
-.paper {
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(43, 38, 34, 0.05);
-}
 .letter {
   position: relative;
   display: flex;
@@ -122,94 +106,12 @@ function submit() {
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(43, 38, 34, 0.05), inset 0 0 60px rgba(183, 121, 31, 0.025);
 }
-.head {
-  position: relative;
-  padding: 16px 24px 12px;
-}
-.head::before {
-  content: "";
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 0;
-  height: 1px;
-  background: #e8e2d4;
-}
-.head::after {
-  content: "记";
-  position: absolute;
-  top: 12px;
-  right: 20px;
-  width: 26px;
-  height: 26px;
-  background: var(--teal);
-  color: #fff;
-  font-family: "Songti SC", "STSong", SimSun, serif;
-  font-size: 15px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 5px;
-  transform: rotate(-4deg);
-  box-shadow: 0 1px 2px rgba(43, 38, 34, 0.18);
-  line-height: 1;
-}
 .head .date {
   font-size: 14px;
   color: var(--sub);
   flex-shrink: 0;
   letter-spacing: 0.03em;
   padding-bottom: 2px;
-}
-.btn {
-  border: 1px solid var(--hairline);
-  background: var(--card);
-  color: var(--ink);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:hover {
-  border-color: var(--teal);
-  color: var(--teal);
-}
-.btn-teal {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #fff;
-}
-.btn-teal:hover {
-  background: var(--teal-dark);
-  border-color: var(--teal-dark);
-  color: #fff;
-}
-.btn-teal:disabled {
-  opacity: 0.6;
-  cursor: default;
-}
-.btn.danger {
-  color: var(--red);
-  border-color: var(--red);
-}
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  background: var(--teal-soft);
-  color: var(--teal);
-  border: 1px solid var(--teal);
-  border-radius: 999px;
-  padding: 2px 9px;
-  font-size: 13px;
-}
-.tag-chip button {
-  background: none;
-  border: none;
-  color: var(--teal);
-  font-size: 12px;
-  padding: 0 0 0 2px;
-  cursor: pointer;
 }
 .edit-modal {
   width: min(680px, 100%);

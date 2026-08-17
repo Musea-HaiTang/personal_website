@@ -71,33 +71,10 @@ const filteredHist = computed(() => {
 
 <style scoped>
 .overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(43, 38, 34, 0.45);
-  display: flex;
   align-items: flex-start;
-  justify-content: center;
-  z-index: 50;
-  padding: 24px;
   padding-top: 7vh;
 }
-.btn {
-  border: 1px solid var(--hairline);
-  background: var(--card);
-  color: var(--ink);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:hover {
-  border-color: var(--teal);
-  color: var(--teal);
-}
 .modal {
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
   box-shadow: 0 20px 60px rgba(43, 38, 34, 0.32);
   width: min(780px, 100%);
   max-height: 84vh;
@@ -224,13 +201,6 @@ const filteredHist = computed(() => {
   gap: 5px;
   flex-wrap: wrap;
   margin-top: 5px;
-}
-.tag {
-  background: var(--paper-soft);
-  color: var(--sub);
-  border-radius: 999px;
-  padding: 2px 9px;
-  font-size: 12px;
 }
 .none {
   color: var(--sub);

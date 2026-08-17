@@ -94,7 +94,7 @@ function onChipClick(e) {
   position: fixed;
   right: 18px;
   bottom: 18px;
-  background: #e7f1ec;
+  background: var(--green-soft);
   border: 1px solid #c9e2d5;
   border-radius: 16px;
   box-shadow: 0 10px 30px rgba(61, 153, 112, 0.18);
@@ -123,7 +123,7 @@ function onChipClick(e) {
 }
 .mini-prog {
   fill: none;
-  stroke: #3d9970;
+  stroke: var(--green);
   stroke-width: 4;
   stroke-linecap: round;
   transform: rotate(-90deg);
@@ -138,7 +138,7 @@ function onChipClick(e) {
   justify-content: center;
   font-family: ui-monospace, Consolas, monospace;
   font-size: 12px;
-  color: #3d9970;
+  color: var(--green);
 }
 .mini-meta {
   display: flex;
@@ -159,7 +159,7 @@ function onChipClick(e) {
   border-radius: 50%;
   border: 1px solid #c9e2d5;
   background: #fff;
-  color: #2b2622;
+  color: var(--ink);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -173,7 +173,7 @@ function onChipClick(e) {
   height: 14px;
 }
 .mini-close {
-  color: #7c7468;
+  color: var(--sub);
 }
 .mini-enter-active,
 .mini-leave-active {
@@ -189,13 +189,13 @@ function onChipClick(e) {
   top: 18px;
   left: 50%;
   transform: translateX(-50%);
-  background: #fffefc;
-  border: 1px solid #e9e3d9;
+  background: var(--card);
+  border: 1px solid var(--hairline);
   box-shadow: 0 8px 24px rgba(43, 38, 34, 0.14);
   border-radius: 999px;
   padding: 10px 20px;
   font-size: 14px;
-  color: #2b2622;
+  color: var(--ink);
   z-index: 80;
 }
 .toast-enter-active,

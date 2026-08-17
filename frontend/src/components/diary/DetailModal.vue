@@ -30,38 +30,7 @@ function plainText(s) {
 
 <style scoped>
 .detail-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(43, 38, 34, 0.45);
-  display: flex;
-  align-items: center;
-  justify-content: center;
   z-index: 60;
-  padding: 24px;
-}
-.btn {
-  border: 1px solid var(--hairline);
-  background: var(--card);
-  color: var(--ink);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  cursor: pointer;
-}
-.btn:hover {
-  border-color: var(--teal);
-  color: var(--teal);
-}
-.btn.danger {
-  color: var(--red);
-  border-color: var(--red);
-}
-.tag {
-  background: var(--paper-soft);
-  color: var(--sub);
-  border-radius: 999px;
-  padding: 2px 9px;
-  font-size: 12px;
 }
 .detail-card {
   width: min(460px, 100%);

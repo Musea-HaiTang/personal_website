@@ -179,7 +179,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onKeydown))
   background: transparent;
 }
 .letter ::-webkit-scrollbar-thumb {
-  background: #2b2622;
+  background: var(--ink);
   border-radius: 999px;
 }
 </style>
