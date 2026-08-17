@@ -1,0 +1,363 @@
+<!doctype html>
+<!--
+  技术答题页最终原型（PROTOTYPE，可丢弃）
+  题型：选择题（考概念，自动判分）+ 填空题（考代码挖空，精确比对 + GLM 宽容判分兜底）。
+  分类：文件级固定（YAML 顶部 category，整个文件同一分类）。
+  页签：答题 / 统计。答题页 = 分类筛选 + 一题一题（题号 1.1/1.2/2.1）+ 进度圆环；
+        统计页 = 总览卡（总题数/已答/平均得分率/选择正确率）+ 分类表现 + 近 7 天趋势 + 薄弱题列表。
+  题库管理弹窗：查看 YAML 格式、导入题目、下载格式文档。
+  只读演示，无真实判分。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>答题页最终原型 · 技术答题 · design-mockups/learn</title>
+<style>
+  :root {
+    --paper: #f7f5f1; --paper-soft: #f4f1ea; --card: #fffefc; --hairline: #e9e3d9;
+    --ink: #2b2622; --sub: #7c7468; --teal: #0e7c74; --teal-dark: #0a6a63; --teal-soft: #e7f1ef;
+    --amber: #b7791f; --amber-soft: #faf1dd; --red: #c4533a; --red-soft: #f9ebe5; --green-soft: #e7f3ea;
+    --serif: "Songti SC", "STSong", SimSun, serif;
+    --sans: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--paper); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2b2622; border-radius: 999px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--teal); }
+  button { font: inherit; border: 0; background: none; cursor: pointer; color: inherit; }
+  :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+  h1, h2, h3, h4 { font-family: var(--serif); font-weight: 700; margin: 0; }
+  .page { max-width: 1200px; margin: 0 auto; padding: 26px 24px 70px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 14px; flex-wrap: wrap; }
+  .bar h1 { font-size: 22px; letter-spacing: 2px; }
+  .bar-left { display: flex; align-items: center; gap: 16px; }
+  .bar-right { display: flex; align-items: center; gap: 12px; }
+  .count { font-size: 12px; color: var(--sub); background: var(--paper-soft); border-radius: 999px; padding: 1px 9px; }
+  .tabs { display: flex; gap: 4px; background: var(--paper-soft); border-radius: 10px; padding: 4px; }
+  .tab { padding: 6px 18px; border-radius: 8px; font-size: 14px; color: var(--sub); }
+  .tab.active { background: var(--card); color: var(--teal-dark); font-weight: 600; box-shadow: 0 1px 3px rgba(43, 38, 34, .08); }
+  .btn { border: 1px solid var(--hairline); border-radius: 10px; background: var(--card); padding: 8px 16px; font-size: 14px; }
+  .btn:hover { border-color: var(--teal); color: var(--teal); }
+  .btn-primary { border-radius: 10px; background: var(--teal); color: #fff; padding: 9px 20px; font-weight: 500; }
+  .btn-primary:hover { background: var(--teal-dark); }
+  .btn-import { border-radius: 10px; background: var(--teal); color: #fff; padding: 8px 18px; font-weight: 500; }
+  .btn-import:hover { background: var(--teal-dark); }
+
+  .ring-wrap { position: relative; width: 52px; height: 52px; }
+  .ring-bar { transform: rotate(-90deg); transform-origin: 50% 50%; }
+  .ring-text { position: absolute; inset: 0; display: grid; place-items: center; font-family: var(--serif); font-size: 12px; font-weight: 700; color: var(--teal-dark); }
+
+  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .chip { border: 1px solid var(--hairline); border-radius: 999px; padding: 4px 12px; font-size: 13px; background: var(--card); }
+  .chip.active { background: var(--teal); border-color: var(--teal); color: #fff; }
+  .panel { background: var(--card); border: 1px solid var(--hairline); border-radius: 14px; padding: 18px; }
+  .difficulty { font-size: 12px; border-radius: 999px; padding: 1px 9px; }
+  .d-easy { color: var(--teal-dark); background: var(--green-soft); }
+  .d-mid { color: var(--amber); background: var(--amber-soft); }
+  .d-hard { color: var(--red); background: var(--red-soft); }
+  .type-badge { font-size: 12px; border-radius: 999px; padding: 1px 9px; background: var(--teal-soft); color: var(--teal-dark); }
+  .q-title { font-size: 16px; margin: 10px 0; }
+  .c-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .c-nav { display: flex; justify-content: space-between; margin-top: 16px; }
+  .ans-title { font-size: 15px; margin-bottom: 10px; }
+  .ans-hint { font-size: 13.5px; color: var(--sub); }
+
+  .opt { display: flex; align-items: flex-start; gap: 9px; width: 100%; text-align: left; border: 1px solid var(--hairline); border-radius: 10px; background: var(--card); padding: 10px 12px; margin-bottom: 8px; font-size: 14px; }
+  .opt:hover { border-color: var(--teal); background: var(--teal-soft); }
+  .opt.sel { border-color: var(--teal); background: var(--teal-soft); font-weight: 600; }
+  .opt .key { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--hairline); display: grid; place-items: center; font-size: 12px; color: var(--sub); flex-shrink: 0; }
+  .opt.sel .key { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .code-q { background: var(--paper-soft); border: 1px solid var(--hairline); border-radius: 10px; padding: 12px; font-size: 13px; overflow-x: auto; white-space: pre; }
+  .code-q .blank { background: var(--amber-soft); color: var(--amber); border-radius: 4px; padding: 0 8px; font-weight: 700; }
+  .fill-input { width: 100%; border: 1px solid var(--hairline); border-radius: 10px; background: var(--card); padding: 10px 12px; font: inherit; font-size: 14px; }
+  .fill-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-soft); }
+  .field-label { display: block; font-size: 13px; color: var(--sub); margin: 12px 0 6px; }
+
+  .result { border: 1px solid var(--hairline); border-radius: 12px; padding: 14px; margin-top: 14px; background: var(--paper-soft); }
+  .score-row { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .score { font-family: var(--serif); font-size: 32px; font-weight: 700; line-height: 1; color: var(--teal-dark); }
+  .score.low { color: var(--red); }
+  .score-total { font-size: 14px; color: var(--sub); }
+  .verdict { font-size: 14px; margin-bottom: 6px; }
+  .verdict.ok { color: var(--teal-dark); }
+  .verdict.miss { color: var(--red); }
+  .explain { font-size: 13.5px; color: var(--ink); border-top: 1px dashed var(--hairline); margin-top: 8px; padding-top: 8px; }
+  .std-answer { border-top: 1px dashed var(--hairline); margin-top: 12px; padding-top: 10px; font-size: 13.5px; }
+  .std-answer h4 { font-size: 14px; margin: 0 0 6px; color: var(--teal-dark); }
+  .result-actions { display: flex; gap: 10px; margin-top: 12px; }
+
+  /* ---------- 统计 ---------- */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .stat-card { background: var(--card); border: 1px solid var(--hairline); border-radius: 12px; padding: 14px; }
+  .stat-card .v { font-family: var(--serif); font-size: 26px; font-weight: 700; color: var(--teal-dark); }
+  .stat-card .k { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .stat-sec { margin-bottom: 14px; }
+  .stat-sec h3 { font-size: 15px; margin-bottom: 10px; }
+  .cat-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; font-size: 13px; }
+  .cat-bar .name { width: 64px; color: var(--sub); }
+  .cat-bar .track { flex: 1; height: 10px; border-radius: 999px; background: var(--paper-soft); overflow: hidden; }
+  .cat-bar .fill { height: 100%; border-radius: 999px; background: var(--teal); }
+  .cat-bar .val { width: 52px; text-align: right; font-weight: 600; color: var(--teal-dark); }
+  .trend { display: flex; align-items: flex-end; gap: 8px; height: 90px; }
+  .trend .col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .trend .bar { width: 100%; max-width: 34px; border-radius: 6px 6px 0 0; background: var(--teal-soft); }
+  .trend .bar.hot { background: var(--teal); }
+  .trend .day { font-size: 11px; color: var(--sub); }
+  .weak-item { display: flex; align-items: center; gap: 10px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--card); padding: 10px 12px; margin-bottom: 8px; width: 100%; text-align: left; font-size: 13.5px; }
+  .weak-item:hover { border-color: var(--teal); }
+  .weak-item .no { color: var(--sub); font-size: 12px; }
+  .weak-item .t { flex: 1; }
+  .weak-item .s { color: var(--red); font-weight: 600; }
+
+  /* ---------- 题库管理弹窗 ---------- */
+  .modal-mask { position: fixed; inset: 0; z-index: 50; background: rgba(43, 38, 34, .35); display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .modal { width: 100%; max-width: 620px; max-height: 84vh; display: flex; flex-direction: column; overflow: hidden; background: var(--card); border: 1px solid var(--hairline); border-radius: 16px; padding: 22px; box-shadow: 0 16px 40px rgba(43, 38, 34, .18); }
+  .modal h3 { font-size: 18px; margin-bottom: 10px; }
+  .modal p { font-size: 13px; color: var(--sub); margin: 0 0 12px; }
+  .modal pre { flex: 0 1 auto; max-height: 300px; overflow: auto; background: var(--paper-soft); border: 1px solid var(--hairline); border-radius: 10px; padding: 12px; font-size: 12px; line-height: 1.5; white-space: pre; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; flex-shrink: 0; }
+  .manage-msg { color: var(--teal-dark); font-size: 13px; }
+
+  @media (max-width: 960px) { .c-wrap { grid-template-columns: 1fr; } .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const QUESTIONS = [
+  { id: 1, no: '1.1', cat: 'Python', type: 'choice', diff: 'easy', score: 5, title: '下面哪个是 Python 装饰器的正确理解？',
+    options: ['装饰器是接收函数并返回新函数的可调用对象', '装饰器只能修饰类方法', '被 @ 装饰的函数会立即执行', '装饰器是 Python 3 才有的特性'],
+    answer: 0, explanation: '装饰器本质是接收函数并返回新函数的可调用对象，@timer 等价于 f = timer(f)。', answered: true, got: 5, myAnswer: 0 },
+  { id: 2, no: '1.2', cat: 'Python', type: 'fill', diff: 'mid', score: 10, title: '补全装饰器：让 timer 返回内部函数 wrap',
+    code: 'def timer(fn):\n    def wrap(*a, **kw):\n        print(fn.__name__)\n        return fn(*a, **kw)\n    return ____',
+    answer: 'wrap', explanation: '装饰器要把内部函数 wrap 返回出去，用来替换原函数。', answered: false },
+  { id: 3, no: '2.1', cat: 'Vue3', type: 'choice', diff: 'easy', score: 5, title: 'Vue3 中 ref 与 reactive 的区别，正确的是？',
+    options: ['ref 用于包装基本类型，reactive 用于对象/数组', 'reactive 也可以包装基本类型', 'ref 在模板中不会自动解包', '两者底层没有任何关系'],
+    answer: 0, explanation: 'ref 包装基本类型（.value 访问、模板自动解包），reactive 用 Proxy 代理对象/数组。', answered: false },
+  { id: 4, no: '2.2', cat: 'Vue3', type: 'fill', diff: 'mid', score: 10, title: '补全代码：用 reactive 创建一个响应式对象',
+    code: 'import { reactive } from "vue"\nconst state = ____({ count: 0 })',
+    answer: 'reactive', explanation: 'reactive 返回一个响应式代理对象。', answered: false }
+];
+
+const state = { view: 'quiz', cat: 'all', current: 0, done: {}, showAnswer: false, manage: false, manageMsg: '', sel: {}, fillVal: {} };
+const app = document.getElementById('app');
+
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function list() { return QUESTIONS.filter(q => state.cat === 'all' || q.cat === state.cat); }
+function current() { const l = list(); return l[Math.min(state.current, l.length - 1)]; }
+function diffHtml(d) { return '<span class="difficulty d-' + d + '">' + ({ easy: '简单', mid: '中等', hard: '困难' }[d]) + '</span>'; }
+function typeHtml(t) { return '<span class="type-badge">' + (t === 'choice' ? '选择题' : '填空题') + '</span>'; }
+function ringHtml(done, total) {
+  const pct = total ? Math.round(done / total * 100) : 0;
+  const r = 20, c = 2 * Math.PI * r;
+  return '<div class="ring-wrap" title="已完成 ' + done + ' / ' + total + '">' +
+    '<svg width="52" height="52" viewBox="0 0 52 52">' +
+    '<circle cx="26" cy="26" r="' + r + '" fill="none" stroke="var(--paper-soft)" stroke-width="6"/>' +
+    '<circle class="ring-bar" cx="26" cy="26" r="' + r + '" fill="none" stroke="var(--teal)" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + c + '" stroke-dashoffset="' + (c * (1 - pct / 100)) + '"/>' +
+    '</svg><span class="ring-text">' + done + '/' + total + '</span></div>';
+}
+function codeHtml(code) {
+  return esc(code).replace('____', '<span class="blank">____</span>');
+}
+function normalize(s) {
+  return String(s ?? '').trim().replace(/[\uFF01-\uFF5E]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0)).replace(/\s+/g, ' ');
+}
+
+function resultView(q) {
+  const d = state.done[q.id];
+  const ok = d && d.got >= q.score && q.type === 'choice' ? d.correct : !(d && d.got < q.score);
+  if (q.type === 'choice') {
+    const correct = d && d.correct;
+    const got = d ? d.got : 0;
+    return '<div class="result"><div class="score-row"><span class="score' + (correct ? '' : ' low') + '">' + got + '</span><span class="score-total">/ ' + q.score + ' 分</span></div>' +
+      '<div class="verdict ' + (correct ? 'ok' : 'miss') + '">' + (correct ? '✓ 回答正确' : '✗ 回答错误，正确答案是 ' + String.fromCharCode(65 + q.answer)) + '</div>' +
+      '<div class="explain">解析：' + esc(q.explanation) + '</div>' +
+      '<div class="result-actions"><button class="btn" id="retry-c">重新作答</button></div></div>';
+  }
+  const got = d ? d.got : 0;
+  const okFill = got >= q.score;
+  return '<div class="result"><div class="score-row"><span class="score' + (okFill ? '' : ' low') + '">' + got + '</span><span class="score-total">/ ' + q.score + ' 分</span></div>' +
+    '<div class="verdict ' + (okFill ? 'ok' : 'miss') + '">' + (okFill ? '✓ 回答正确' : '✗ 与标准答案不一致') + '</div>' +
+    '<div class="explain">解析：' + esc(q.explanation) + '</div>' +
+    '<div class="result-actions">' +
+    '<button class="btn" id="answer-c">查看标准答案</button>' +
+    '<button class="btn" id="retry-c">重新作答</button></div>' +
+    (state.showAnswer ? '<div class="std-answer"><h4>标准答案</h4><p>' + esc(q.answer) + '</p></div>' : '') + '</div>';
+}
+
+function questionLeft(q, l) {
+  const body = q.type === 'choice'
+    ? q.options.map((o, i) =>
+        '<button class="opt' + (state.sel[q.id] === i ? ' sel' : '') + '" data-opt="' + i + '"><span class="key">' + String.fromCharCode(65 + i) + '</span><span>' + esc(o) + '</span></button>').join('')
+    : '<pre class="code-q">' + codeHtml(q.code) + '</pre>';
+  return '<section class="panel">' + typeHtml(q.type) + ' ' + diffHtml(q.diff) + ' <span class="count">' + q.cat + ' · ' + q.score + ' 分</span>' +
+    '<h2 class="q-title">' + q.no + ' ' + esc(q.title) + '</h2>' + body +
+    '<div class="c-nav"><button class="btn" id="prev-q"' + (state.current === 0 ? ' disabled' : '') + '>← 上一题</button><button class="btn" id="next-q"' + (state.current === l.length - 1 ? ' disabled' : '') + '>下一题 →</button></div></section>';
+}
+function answerRight(q) {
+  const d = state.done[q.id];
+  return '<section class="panel"><h3 class="ans-title">作答与判分</h3>' +
+    (q.type === 'fill'
+      ? '<label class="field-label">填写空处（____）的答案</label><input class="fill-input" id="fill-input" placeholder="输入答案，例如：wrap" value="' + esc(state.fillVal[q.id] ?? '') + '">'
+      : '<p class="ans-hint">在左侧选择答案，然后提交判分。</p>') +
+    '<div style="margin-top:12px;"><button class="btn-primary" id="submit-c">提交判分</button></div>' +
+    (d ? resultView(q) : '') + '</section>';
+}
+
+function statsView() {
+  const answered = QUESTIONS.filter(q => q.answered || state.done[q.id]);
+  const totalScore = answered.reduce((s, q) => s + (q.answered ? q.got : (state.done[q.id] ? state.done[q.id].got : 0)), 0);
+  const maxScore = answered.reduce((s, q) => s + q.score, 0);
+  const rate = maxScore ? Math.round(totalScore / maxScore * 100) : 0;
+  const choices = answered.filter(q => q.type === 'choice');
+  const choiceRate = choices.length ? Math.round(choices.filter(q => q.answered ? q.got === q.score : state.done[q.id].correct).length / choices.length * 100) : 0;
+  const cats = ['Python', 'Vue3'].map(cat => {
+    const qs = answered.filter(q => q.cat === cat);
+    const got = qs.reduce((s, q) => s + (q.answered ? q.got : state.done[q.id].got), 0);
+    const mx = qs.reduce((s, q) => s + q.score, 0);
+    return { name: cat, rate: mx ? Math.round(got / mx * 100) : 0 };
+  });
+  const trend = [{ d: '8/10', n: 2, hot: false }, { d: '8/11', n: 1, hot: false }, { d: '8/12', n: 0, hot: false }, { d: '8/13', n: 3, hot: false }, { d: '8/14', n: 1, hot: false }, { d: '8/15', n: 4, hot: true }, { d: '今天', n: 1, hot: false }];
+  const maxN = 4;
+  return '<div class="stat-grid">' +
+    '<div class="stat-card"><div class="v">' + QUESTIONS.length + '</div><div class="k">总题数</div></div>' +
+    '<div class="stat-card"><div class="v">' + answered.length + '</div><div class="k">已答题目</div></div>' +
+    '<div class="stat-card"><div class="v">' + rate + '%</div><div class="k">平均得分率</div></div>' +
+    '<div class="stat-card"><div class="v">' + choiceRate + '%</div><div class="k">选择题正确率</div></div>' +
+    '</div>' +
+    '<section class="panel stat-sec"><h3>分类表现</h3>' +
+    cats.map(c => '<div class="cat-bar"><span class="name">' + c + '</span><div class="track"><div class="fill" style="width:' + c.rate + '%"></div></div><span class="val">' + c.rate + '%</span></div>').join('') +
+    '</section>' +
+    '<section class="panel stat-sec"><h3>近 7 天答题趋势</h3><div class="trend">' +
+    trend.map(t => '<div class="col"><div class="bar' + (t.hot ? ' hot' : '') + '" style="height:' + (t.n / maxN * 64) + 'px"></div><span class="day">' + t.d + '</span></div>').join('') +
+    '</div></section>';
+}
+
+function manageModal() {
+  return '<div class="modal-mask" id="manage-mask"><div class="modal"><h3>题库管理</h3>' +
+    '<p>让 AI 按固定格式生成题目后快速导入。分类写在文件顶部，整个文件一个分类；选择题考概念、填空题考代码挖空。</p>' +
+    '<pre>' + esc(YAML_SAMPLE) + '</pre>' +
+    '<div class="modal-actions">' +
+    '<button class="btn-import" id="import-quiz">导入题目</button>' +
+    '<button class="btn" id="download-tpl">下载题目格式文档</button>' +
+    '<button class="btn" id="manage-close">关闭</button>' +
+    '</div>' +
+    (state.manageMsg ? '<p class="manage-msg">' + esc(state.manageMsg) + '</p>' : '') +
+    '<input type="file" id="quiz-file" accept=".yaml,.yml,.md,.txt" style="display:none">' +
+    '</div></div>';
+}
+function downloadTemplate() {
+  const blob = new Blob(['\ufeff' + YAML_TEMPLATE], { type: 'text/yaml;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'quiz-template.yaml';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+const YAML_SAMPLE = '# 分类固定写在文件顶部，整个文件一个分类\n' +
+  'category: Python\n' +
+  'questions:\n' +
+  '  - type: choice          # choice=选择题（考概念）\n' +
+  '    no: "1.1"             # 题号，可选；留空自动编号\n' +
+  '    score: 5              # 分值，可选；默认 choice=5、fill=10\n' +
+  '    title: 下面哪个是 Python 装饰器的正确理解？\n' +
+  '    options:              # 固定 4 项，从左到右对应 A/B/C/D\n' +
+  '      - 装饰器是接收函数并返回新函数的可调用对象   # A\n' +
+  '      - 装饰器只能修饰类方法                      # B\n' +
+  '      - 被 @ 装饰的函数会立即执行                 # C\n' +
+  '      - 装饰器是 Python 3 才有的特性              # D\n' +
+  '    answer: A             # 正确选项的字母，只能填 A/B/C/D 之一\n' +
+  '    explanation: |\n' +
+  '      装饰器本质是接收函数并返回新函数的可调用对象。\n' +
+  '\n' +
+  '  - type: fill            # fill=填空题（考代码挖空）\n' +
+  '    no: "1.2"\n' +
+  '    score: 10\n' +
+  '    title: 补全装饰器：返回内部函数\n' +
+  '    code: |\n' +
+  '      def timer(fn):\n' +
+  '          def wrap(*a, **kw):\n' +
+  '              return fn(*a, **kw)\n' +
+  '          return ____\n' +
+  '    answer: wrap           # 标准答案\n' +
+  '    accept:                # 可选：其他可接受答案\n' +
+  '      - wrap\n' +
+  '    explanation: |\n' +
+  '      装饰器要把 wrap 返回出去替换原函数。\n';
+const YAML_TEMPLATE = '# 技术答题题库格式文档（给 AI 生成题目时参考）\n' +
+  '# 必填：category、questions[].type、title；choice 必填 options（固定 4 项 A-D）与 answer（填 A/B/C/D）；fill 必填 code/answer\n' +
+  '# 分类固定写在文件顶部，整个文件一个分类；一次可导入多题\n' +
+  YAML_SAMPLE;
+
+function render() {
+  if (state.view === 'stats') {
+    app.innerHTML = '<div class="page"><header class="bar"><div class="bar-left"><h1>技术答题</h1>' +
+      '<div class="tabs"><button class="tab" data-view="quiz">答题</button><button class="tab active" data-view="stats">统计</button></div></div>' +
+      '<div class="bar-right"><button class="btn" id="quiz-manage">题库管理</button>' + ringHtml(QUESTIONS.filter(q => q.answered || state.done[q.id]).length, QUESTIONS.length) + '</div></header>' +
+      statsView() + '</div>' + (state.manage ? manageModal() : '');
+  } else {
+    const q = current();
+    const l = list();
+    const doneCount = l.filter(x => x.answered || state.done[x.id]).length;
+    const chips = [['all', '全部'], ['Python', 'Python'], ['Vue3', 'Vue3']].map(([k, v]) =>
+      '<button class="chip' + (state.cat === k ? ' active' : '') + '" data-cat="' + k + '">' + v + '</button>').join('');
+    app.innerHTML = '<div class="page"><header class="bar"><div class="bar-left"><h1>技术答题</h1>' +
+      '<div class="tabs"><button class="tab active" data-view="quiz">答题</button><button class="tab" data-view="stats">统计</button></div></div>' +
+      '<div class="bar-right"><button class="btn" id="quiz-manage">题库管理</button>' + ringHtml(doneCount, l.length) + '<span class="count">第 ' + q.no + ' 题 · 共 ' + l.length + ' 题</span></div></header>' +
+      '<div class="filters">' + chips + '</div>' +
+      '<div class="c-wrap">' + questionLeft(q, l) + answerRight(q) + '</div></div>' + (state.manage ? manageModal() : '');
+  }
+  app.insertAdjacentHTML('beforeend', '');
+}
+
+function wire() {
+  app.querySelectorAll('[data-view]').forEach(el => el.addEventListener('click', () => { state.view = el.dataset.view; render(); wire(); }));
+  app.querySelectorAll('[data-cat]').forEach(el => el.addEventListener('click', () => { state.cat = el.dataset.cat; state.current = 0; state.showAnswer = false; render(); wire(); }));
+  app.querySelectorAll('[data-opt]').forEach(el => el.addEventListener('click', () => { const q = current(); state.sel[q.id] = +el.dataset.opt; render(); wire(); }));
+  app.querySelectorAll('#fill-input').forEach(el => el.addEventListener('input', () => { const q = current(); state.fillVal[q.id] = el.value; }));
+  const submit = app.querySelector('#submit-c');
+  if (submit) submit.addEventListener('click', () => {
+    const q = current();
+    if (q.type === 'choice') {
+      const my = state.sel[q.id];
+      if (my === undefined) return;
+      const correct = my === q.answer;
+      state.done[q.id] = { correct, got: correct ? q.score : 0, my };
+    } else {
+      const val = state.fillVal[q.id] ?? '';
+      if (!val.trim()) return;
+      const ok = normalize(val) === normalize(q.answer) || (q.accept || []).some(a => normalize(val) === normalize(a));
+      state.done[q.id] = { got: ok ? q.score : 0 };
+    }
+    render(); wire();
+  });
+  const l = list();
+  app.querySelector('#prev-q')?.addEventListener('click', () => { state.current = Math.max(0, state.current - 1); state.showAnswer = false; render(); wire(); });
+  app.querySelector('#next-q')?.addEventListener('click', () => { state.current = Math.min(l.length - 1, state.current + 1); state.showAnswer = false; render(); wire(); });
+  app.querySelector('#answer-c')?.addEventListener('click', () => { state.showAnswer = !state.showAnswer; render(); wire(); });
+  app.querySelector('#retry-c')?.addEventListener('click', () => { const q = current(); delete state.done[q.id]; state.sel[q.id] = undefined; state.showAnswer = false; render(); wire(); });
+  const mg = app.querySelector('#quiz-manage');
+  if (mg) mg.addEventListener('click', () => { state.manage = true; render(); wire(); });
+  app.querySelectorAll('#manage-close').forEach(el => el.addEventListener('click', () => { state.manage = false; render(); wire(); }));
+  const mm = app.querySelector('#manage-mask');
+  if (mm) mm.addEventListener('click', e => { if (e.target === mm) { state.manage = false; render(); wire(); } });
+  const dl = app.querySelector('#download-tpl');
+  if (dl) dl.addEventListener('click', downloadTemplate);
+  const iq = app.querySelector('#import-quiz');
+  if (iq) iq.addEventListener('click', () => { const f = app.querySelector('#quiz-file'); if (f) f.click(); });
+  const qf = app.querySelector('#quiz-file');
+  if (qf) qf.addEventListener('change', () => { if (qf.files && qf.files[0]) { state.manageMsg = '已选择 ' + qf.files[0].name + '（原型演示，不真正导入）'; render(); wire(); } });
+}
+
+render(); wire();
+</script>
+</body>
+</html>
