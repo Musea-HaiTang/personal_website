@@ -1,58 +1,48 @@
-# 个人网站 P0 开发计划
+# 个人网站开发计划
 
-## 1. 目标
+> 单用户个人网站，Vue 3 + FastAPI，本机免登录一键启动（`start.bat`）。
+> 当前状态：**P0 五个核心模块已完成并通过验收（2026-08-16）**；**P1 学习模块开发中（2026-08-17 起）**。
 
-用 Vue 3 + FastAPI 搭建一个单用户个人网站，本机免登录一键启动。P0 交付五个页面：
+## 1. 项目概述
 
-1. 聚合首页：一眼看到今日任务、今日专注时长、最近日记和置顶导航。
-2. 计划页：按日期安排、查看、编辑任务。
-3. 日记页：用 Markdown 写日记，支持标签、搜索、预览。
-4. 番茄钟页：专注计时，记录历史，可选绑定计划任务。
-5. 导航页：分类管理常用网站，支持置顶和即时搜索。
+一个日常自用的个人网站：任务计划、日记闪念、番茄专注、书签导航、学习笔记与答题。结构化数据存 SQLite，日记/笔记正文落盘为 Markdown 文件；架构为后续桌宠、爬虫、小说阅读和公网登录预留扩展点。
 
-结构化数据存 SQLite，日记正文存 `YYYY-MM-DD.md` 文件；架构为后续学习笔记、答题、桌宠、爬虫、小说阅读和公网登录预留扩展点。
-
-## 2. 技术方案
-
-### 技术栈
+## 2. 技术栈
 
 - 前端：Vue 3.5 + Vite + Tailwind + Pinia + Vue Router + Axios，Markdown 预览用 markdown-it。
 - 后端：FastAPI + SQLAlchemy 2.0 + SQLite + Pydantic v2。
 - 测试：pytest + TestClient，只测 HTTP API 外部行为。
+- P1 模型：`zai-sdk`，`embedding-3` 向量 + `glm-4.7-flash` 问答（`ZHIPU_API_KEY` 在 backend/.env，不入库）。
 
-### 目录结构
+## 3. 架构设计
+
+### 3.1 目录结构（当前）
 
 ```text
 personal_website/
-├── plan.md
-├── SPEC.md
-├── AGENTS.md                   # 仓库级 agent 指令（issue tracker / domain docs）
-├── start.bat                    # 一键启动前后端
+├── plan.md / SPEC.md / README.md / AGENTS.md
+├── start.bat / setup.bat          # 一键启动 / 首次初始化
+├── docs/agents/                   # 工作流、issue 约定、领域文档、架构体检记录
+├── design-mockups/                # UI 原型（diary/learn/nav/pomodoro/plans）
 ├── backend/
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── config.py
-│   │   ├── database.py
-│   │   ├── models/              # SQLAlchemy 模型
-│   │   ├── schemas/             # Pydantic 请求/响应模型
-│   │   ├── routers/             # API 路由
-│   │   └── services/            # 业务逻辑（日记文件读写等）
-│   ├── tests/
-│   ├── data/                    # SQLite 数据库和 Markdown 日记
-│   ├── requirements.txt
-│   └── .env.example
+│   │   ├── main.py / config.py / database.py
+│   │   ├── models/                # tasks / diary / flash / notes / quiz / nav / pomodoro
+│   │   ├── schemas/               # Pydantic 请求/响应模型
+│   │   ├── routers/               # HTTP 层：参数与响应模型
+│   │   └── services/              # 业务规则与文件读写（tasks/diary/notes/quiz/favicon/tags/dashboard）
+│   ├── tests/                     # pytest，独立 SQLite
+│   ├── data/                      # SQLite + 日记/笔记 Markdown + favicon 缓存
+│   └── requirements.txt
 └── frontend/
     ├── src/
-    │   ├── api/
-    │   ├── router/
-    │   ├── stores/              # Pinia
-    │   ├── views/               # 五个页面
-    │   └── components/
-    ├── package.json
-    └── vite.config.js
+    │   ├── api/ router/ stores/ utils/
+    │   ├── views/                 # 六个页面（Home/Plans/Diary/Pomodoro/Notes/Nav）
+    │   └── components/            # BaseModal / FloatingTimer + diary/nav/notes/plans 弹窗
+    └── package.json / vite.config.js / tailwind.config.js
 ```
 
-### 数据模型
+### 3.2 数据模型
 
 | 表 | 用途 | 关键字段 |
 | --- | --- | --- |
@@ -60,247 +50,118 @@ personal_website/
 | `subtasks` | 子任务 | 所属计划、名字、备注、重要度、完成状态、完成时间 |
 | `tasks` | 今日任务 | 标题、日期、重要度、备注、完成状态、可关联计划与子任务、复盘原因 |
 | `diary_entries` | 日记元数据 | 日期（唯一）、标题、标签、正文文件路径 |
+| `flash_notes` | 闪念 | 内容、创建时间（按日聚合） |
+| `notes` | 学习笔记 | 文件夹、标题、标签、文件路径、更新时间 |
+| `questions` | 题库 | 分类、题号、题型（choice/fill）、题目、选项、答案/可接受答案、代码、解析、分值 |
 | `pomodoro_sessions` | 番茄记录 | 开始/结束时间、专注时长、可选绑定任务 |
-| `nav_categories` | 导航分类 | 名称、排序 |
-| `nav_links` | 导航链接 | 标题、URL、描述、分类、置顶、排序 |
+| `nav_categories` / `nav_links` | 导航 | 名称、URL、描述、分类、置顶、排序 |
 
 所有表预留可空 `user_id` 字段，为未来公网登录留扩展点。
 
-### API 概览
+### 3.3 API 概览
 
 | 模块 | 路由 | 说明 |
 | --- | --- | --- |
 | 健康检查 | `/api/health` | 前后端连通性 |
 | 聚合首页 | `/api/dashboard` | 今日任务、今日专注统计、最近日记、置顶导航 |
-| 计划 | `/api/plans`、`/api/subtasks`、`/api/tasks` | 计划/子任务/今日任务 CRUD；按日期/周筛选；顺延；周导出 |
-| 日记 | `/api/diary` | CRUD；搜索支持日期、标签、关键词 |
-| 番茄钟 | `/api/pomodoro/sessions` | 创建会话记录、按日统计 |
-| 导航 | `/api/nav/categories`、`/api/nav/links` | 分类和链接 CRUD |
+| 计划 | `/api/plans`、`/api/subtasks`、`/api/tasks` | CRUD；按日期/周筛选；关联完成；顺延；周导出 |
+| 日记 | `/api/diary` | CRUD；按日期、标签、关键词搜索 |
+| 闪念 | `/api/flash` | 新增/删除；按日期、关键词过滤 |
+| 笔记 | `/api/notes` | CRUD；文件夹；粘贴/批量/文件夹导入 |
+| 题库 | `/api/quiz` | 题目 CRUD；`quiz-template.yaml` 下载；YAML 导入预览/确认 |
+| 番茄钟 | `/api/pomodoro/sessions` | 创建会话、按日统计、可选绑定任务 |
+| 导航 | `/api/nav/categories`、`/api/nav/links`、`/api/nav/favicons` | CRUD、置顶排序、favicon 本地缓存 |
 
-## 3. 阶段划分
+### 3.4 前端 CSS 三层架构（约定）
 
-### 阶段 0：仓库与计划（当前）
+- **第 0 层 令牌**：`frontend/src/style.css` 的 `:root` 一次性定义全部主题变量（纸色/墨绿/琥珀/字体），与 `tailwind.config.js` 同值，两处需同步维护。
+- **第 1 层 公共组件类**：`@layer components` 统一维护 `.page`、`.card`/`.paper`、`.btn` 系列、`.tag`/`.tag-chip`、错误提示、弹窗遮罩、弹窗外壳、日记信纸头 `.head`；改样式只动这一处。
+- **第 2 层 页面专属样式**：scoped `<style>` 只放页面独有视觉（信纸横线、便利贴、热力图、番茄圆环、导航磁贴等）。
+- 新页面写法：Tailwind 工具类管布局 + 公共类管组件 + 小段 scoped 管装饰；颜色一律用主题变量，不写硬编码色值。
 
-- 内容：`SPEC.md` 已发布到 GitHub issue，建立 `plan.md`，完成初始提交。
-- 验证：issue 可见、仓库 `main` 分支有初始提交。
-- 业务收益：规格和计划先固化下来，后续每个阶段都有明确依据，不会边做边丢需求。
+### 3.5 后端分层约定
 
-### 阶段 1：项目骨架
+- Router 只做 HTTP 参数与响应模型；业务规则（任务联动、顺延、周导出、笔记改名移文件、题库导入、聚合）收进各自 service。
+- 前端数据流：视图编排、Pinia store 管数据；弹窗拆独立组件，共享 `BaseModal` 与 `utils/highlight.js`。
 
-- 内容：创建 `backend/` 和 `frontend/` 目录、依赖清单、基础配置、一键启动脚本 `start.bat`。
-- 验证：后端 uvicorn 能启动，前端 Vite 能启动，`/api/health` 可访问。
-- 业务收益：先把运行环境搭通，后续写功能时随时能启动和自测，减少最后才联调的返工。
+## 4. 功能现状
 
-**状态：已完成（2026-08-14）**，对应 GitHub issue #2。
+### P0 核心模块（已完成）
 
-- 后端骨架：FastAPI + SQLAlchemy 2.0 + SQLite，`/api/health` 返回时区（Asia/Shanghai）与 `AUTH_ENABLED`（默认 false）配置，数据目录 `backend/data/` 自动创建，SQLite 初始化无报错。
-- 前端骨架：Vite + Vue 3 + Tailwind + Pinia + Vue Router，侧边栏含五个页面路由（首页/计划/日记/番茄钟/导航），首页显示后端连通状态。
-- 一键启动：`start.bat` 同时拉起 uvicorn（8000）与 Vite（5173），`setup.bat` 负责首次初始化依赖。
-- 验证结果：`pytest` 5 项通过；`npm run build` 通过；手工冒烟 `/api/health`、前端页面、代理转发均返回 200。
-- 确认（2026-08-15）：issue #2 已关闭。
+| 模块 | issue | 完成时间 | 关键功能 |
+| --- | --- | --- | --- |
+| 项目骨架 | #2 | 2026-08-14/15 | FastAPI + SQLAlchemy + SQLite；Vite + Vue3 + Tailwind + Pinia；start.bat/setup.bat |
+| 导航 | #3 | 2026-08-14/16 | 分类/链接 CRUD、置顶排序、即时搜索、书签墙改版、favicon 本地缓存 |
+| 计划任务 | #4 | 2026-08-15 | 本周计划/子任务/今日任务、关联完成、复盘顺延、周导出、列宽拖拽 |
+| 日记 | #5 | 2026-08-14/15 | Markdown 日记、标签/日期/关键词搜索、便利贴闪念、信纸弹窗、热力图与统计 |
+| 番茄钟 | #6 | 2026-08-14/15 | 专注/休息双模式、时长编辑、全局小窗、绑定任务、今日统计 |
+| 聚合首页 | #7 | 2026-08-16 | `/api/dashboard` 四块数据（任务/专注/日记/导航） |
+| 整体验收 | #8 | 2026-08-16 | 一键启动、全流程冒烟、pytest 37 项、P0 交付完成 |
 
-### 阶段 2：后端数据层与 API
+### P1 学习模块（进行中）
 
-- 内容：建表、Pydantic schema、五个模块的 CRUD 路由、日记 Markdown 文件读写服务、番茄按日统计、聚合首页接口。
-- 验证：pytest 冒烟测试通过，覆盖任务 CRUD、日记保存/加载/搜索、番茄记录与日统计、导航 CRUD、聚合首页。
-- 业务收益：数据先稳定落地，前端只管展示和调用，改页面时不需要动数据逻辑。
+- 定稿（SPEC #11 / 票 #12–#17）：侧边栏「笔记」入口，页内「学习笔记 / 问答 / 答题」三页签；问答按「项目 / 最近」分组；答题为选择题/填空题 + YAML 文件级分类题库。
+- **#12 笔记模块（已完成）**：笔记 Markdown 落盘、粘贴/批量/文件夹导入、文件夹与标签管理、关键词检索、直接编辑（Ctrl+S、未保存提示）、搜索高亮。
+- **#13 题库管理（已完成）**：题目 CRUD、YAML 批量导入（解析→校验→预览→确认）、模板下载。
+- **当前 frontier**：#14 分块与向量索引 → #15 RAG 问答；#16 答题判分 → #17 统计与整体验收。
 
-**番茄钟 API 已完成（2026-08-14）**，对应 GitHub issue #6 的后端部分：
+## 5. 验收清单
 
-- 表：`pomodoro_sessions`（开始/结束时间、专注秒数、可空 task_id），预留 `user_id`。
-- 路由：`POST /api/pomodoro/sessions` 创建完成记录；`GET /api/pomodoro/sessions?day=` 按本地日期返回会话列表 + 当日次数/总时长统计。
-- 验证结果：pytest 番茄用例（会话创建与日统计、按日筛选、参数校验）通过。
-
-**日记 API 已完成（2026-08-14）**，对应 GitHub issue #5 的后端部分：
-
-- 表：`diary_entries`（日期唯一、标题、标签、正文文件路径），预留 `user_id`。
-- 存储：正文写 `backend/data/diary/YYYY-MM-DD.md`，元数据入库；`/api/diary` 支持 CRUD、按日期/标签/关键词（标题+正文）搜索、同日冲突 409。
-- 验证结果：pytest 日记用例（文件生成、加载编辑、三类搜索、删除、冲突）通过。
-
-**计划任务 API 已完成（2026-08-15）**，对应 GitHub issue #4 的后端部分：
-
-- 表：`weekly_plans`（标题、重要度、备注、周起始日）、`subtasks`（所属计划、名字、备注、重要度、完成状态、完成时间）、`tasks`（今日任务：标题、日期、重要度、备注、完成状态，可关联计划与子任务、记录复盘原因）。
-- 路由：`/api/plans`（嵌套返回子任务）CRUD；`/api/subtasks` CRUD；`/api/tasks` CRUD（按日期筛选）；`POST /api/tasks/{id}/rollover` 顺延到明天；`GET /api/plans/week/export` 导出本周计划 Markdown。
-- 联动：完成今日任务自动完成所关联子任务，重新打开同步回退；删除计划级联删除其子任务；子任务被删除时解除任务关联。
-- 验证结果：pytest 计划任务用例（计划/子任务/今日任务 CRUD、关联完成、顺延、周导出、404/校验）通过。
-
-**导航模块 API 已完成（2026-08-14）**，对应 GitHub issue #3 的后端部分：
-
-- 表：`nav_categories`（名称、排序）、`nav_links`（标题、URL、描述、分类、置顶、排序），均预留 `user_id`。
-- 路由：`/api/nav/categories` 与 `/api/nav/links` 完整 CRUD；删除分类级联删除其链接；链接按置顶优先、排序值、ID 排序。
-- 验证结果：pytest 导航用例（分类 CRUD、链接 CRUD、置顶排序、404/校验）通过。
-
-### 阶段 3：前端基础框架
-
-- 内容：Vite + Tailwind + Pinia + Vue Router，侧边栏布局，五个页面路由和空壳。
-- 验证：`npm run build` 通过，开发服务器能打开。
-- 业务收益：页面骨架和导航先成型，后面每个模块直接往里填，界面风格保持一致。
-
-### 阶段 4：四个核心模块页面
-
-- 内容：
-  - 计划页：按日期分组、新增/编辑/删除、完成切换、日期筛选。
-  - 日记页：Markdown 编辑与预览、标签、日期/标签/关键词搜索、保存/编辑/删除。
-  - 番茄钟页：默认 25 分钟、可调时长、暂停/继续/重置、完成记录、可选绑定任务、今日统计。
-  - 导航页：分类与链接 CRUD、置顶、即时搜索。
-- 验证：手工冒烟四个页面各自完成一遍新增、修改、删除。
-- 业务收益：日常用得最多的四件事先能独立跑通，每完成一个页面就能实际使用。
-
-**番茄钟页已完成（2026-08-14）**，对应 GitHub issue #6：
-
-- 页面功能：专注（默认 25 分钟）/休息（默认 5 分钟）两种模式；时长可调（1-120/1-60 分钟）；开始、暂停、继续、重置；专注结束自动记录时长并切换休息，也可手动「完成」提前记录实际专注时长。
-- 统计：页面顶部显示今日专注次数与总时长（分钟/秒）。
-- 验证结果（root 复核）：全量 `pytest` 22 项通过；`npm run build` 通过；手工冒烟创建会话、当日统计均正常，测试记录已清理。
-
-**番茄钟页改版（2026-08-15 定稿）**，对应 GitHub issue #6：
-
-- 设计定稿（`design-mockups/pomodoro/timer.html` 原型）：藤蔓圆环 + 专注/休息双模式 + 图标控制按钮；点击环内时间数字直接输入分钟数（悬停 ✎ 提示，空框输入不再全选）；今日 🍅 计数与「今日专注」会话列表并入右上角统计按钮弹层；计时中右下角浅绿小窗全局显示。
-- 实现：新增 `stores/pomodoro.js`（Pinia 全局状态，结束时间戳校准防切后台漂移）、重写 `views/PomodoroView.vue`、新增全局 `components/FloatingTimer.vue`（小窗 + 完成 toast）；专注结束自动 `POST /api/pomodoro/sessions` 并刷新当日统计。
-- 验证结果：`npm run build` 通过（PomodoroView 独立 CSS/JS chunk 正常产出）；后端 API 复用现有路由，无改动。
-- 确认（2026-08-15）：双轴 code-review 通过（提交 494f410 / 6c63e2d 已推送 main），issue #6 已关闭。
-
-**日记页已完成（2026-08-14）**，对应 GitHub issue #5：
-
-- 页面功能：左侧日记列表（标题/日期/标签），右侧 Markdown 编辑与即时预览（markdown-it）；日期、标签、关键词搜索；新建/保存修改/删除。
-- 交互：搜索即输即筛，删除有确认；加载、保存、删除失败时有错误提示。
-- 验证结果（root 复核）：全量 `pytest` 22 项通过；`npm run build` 通过；手工冒烟完成保存生成 md 文件、编辑、三类搜索命中、删除清理，均正常。
-
-**日记页改版（2026-08-15 定稿）**，对应 GitHub issue #5：
-
-- 设计定稿（`design-mockups/diary/` 原型）：便利贴闪念 + 信纸日记 + 图表，主视觉为「贴角信纸」构图，沿用纸感主题。
-- 页面结构：顶部「去年今天 / 往日记录 / 连续记录」；中部信纸摘要卡（标题+日期、独立标签行、横线正文最多 3 行省略）+ 便利贴（今日灵感，贴一张/删除）；下方统计（总篇数/总字数/今年篇数/连续记录）、写作热力图（近 6 个月）、每月字数+闪念条数、常用标签。
-- 编辑交互：点信纸弹出居中的大信纸弹窗，写标题、Markdown 正文（横线纸、实时字数），标签为「＋标签」按钮弹出常用标签选择 + 新标签添加；弹窗保留印章。
-- 往日记录：独立弹窗，分「全部 / 日记 / 闪念」页签 + 关键词搜索。
-- 去年今天：回顾去年今日的日记，无记录时显示引导文案。
-- 新增后端：`flash_notes` 表 + `/api/flash` CRUD（按日期/关键词过滤，闪念只新增/删除不编辑）。
-- 验证结果：全量 `pytest` 29 项通过；`npm run build` 通过。
-- 确认（2026-08-15）：issue #5 已关闭。
-
-**计划页已完成（2026-08-15）**，对应 GitHub issue #4：
-
-- 页面功能：标签页「今日 / 本周计划 / 已完成 / 复盘」；今日任务表格（名字/标签/备注/重要度，列宽可拖拽并本地记忆）；本周计划页签左列表右详情（进度环、重要度、子任务表格）；点任务/子任务/计划弹窗编辑；添加今日任务可从计划子任务挑选并建立关联。
-- 复盘：未完成任务点开弹窗填写原因后顺延到明天，支持全部顺延；已完成页签查看详情并在确认后重新打开；顶部导出本周计划（Markdown）。
-- 交互：删除计划/子任务/任务、重新打开均有确认；加载、保存、删除失败时有错误提示。
-- 验证结果（root 复核）：全量 `pytest` 25 项通过；`npm run build` 通过。
-- 确认（2026-08-15）：issue #4 已关闭。
-
-**导航页已完成（2026-08-14）**，对应 GitHub issue #3：
-
-- 页面功能：分类新建/重命名/删除；链接新增/编辑/删除；置顶切换与上下移排序；按标题、URL、描述即时搜索（关键词过滤，无命中时隐藏空分类）。
-- 交互：新增/编辑用模态表单，删除有确认；加载、保存、删除失败时有错误提示。
-- 验证结果（root 复核）：全量 `pytest` 22 项通过；`npm run build` 通过；手工冒烟完成分类/链接增删改、置顶排序、链接编辑，均正常。
-
-### 阶段 5：聚合首页与模块联动
-
-- 内容：首页四块数据展示，番茄记录绑定任务。
-- 验证：完成一条任务、写一篇日记、记一次番茄、加一个导航链接后，首页四块同步更新。
-- 业务收益：不用分别打开四个页面也能掌握当天状态，网站真正成为日常入口。
-
-**聚合首页已完成（2026-08-16）**，对应 GitHub issue #7：
-
-- 后端：`GET /api/dashboard` 一次返回四块数据——今日未完成任务（按重要度排序）、今日番茄次数与总时长（本地时区）、最近 5 篇日记（按日期倒序）、置顶导航链接（按排序）；新增 `app/routers/dashboard.py` 与 `app/schemas/dashboard.py`。
-- 前端：新增 `stores/dashboard.js`（Pinia store），重写 `views/HomeView.vue`——四张纸感卡片：今日任务（重要度徽标）、今日专注（次数 + 时长）、最近日记（日期/标题/标签）、常用导航（favicon + 域名）；每次进入首页重新拉取，保证其他模块改动后同步更新；空状态有引导文案。
-- 验证结果：全量 `pytest` 35 项通过（含 dashboard 空数据与四块聚合用例）；`npm run build` 通过。
-- 确认（2026-08-16）：双轴 code-review 通过（Standards 无硬性违规，Spec 逐条核验通过），issue #7 已关闭并推送 main。
-
-### 阶段 6：联调验收与收尾
-
-- 内容：一键启动全流程、后端测试、前端构建、修复问题、提交推送。
-- 验证：按验收清单完整跑一遍，`pytest` 通过、`npm run build` 通过。
-- 业务收益：交付一个能直接使用的本机工具，后续 P1/P2/P3 在这个基础上迭代。
-
-**整体验收与收尾已完成（2026-08-16，对应 GitHub issue #8）：**
-- 番茄绑定任务：后端 `POST /api/pomodoro/sessions` 支持可选 `task_id` 并校验任务存在（404），会话响应与「今日专注」历史列表返回 `task_title`；前端番茄钟页面新增「绑定任务」下拉（专注模式且未计时时可切换），专注结束自动携带绑定关系，历史记录展示任务名。
-- 一键启动验收：`start.bat` 拉起后端 uvicorn（:8000，`/api/health` 200）与前端 Vite（:5173，页面 200）。
-- 全流程冒烟：新建任务 → 绑定番茄（接口与历史均显示任务名）→ 写日记 → 新增置顶导航链接 → `/api/dashboard` 四块（今日任务 / 今日专注 / 最近日记 / 置顶导航）同步命中；冒烟数据已全部清理，真实数据无残留。
-- 验证结果：全量 `pytest` 37 项通过；`npm run build` 通过。
-- 确认（2026-08-16）：双轴 code-review 通过（Standards 无硬性违规；Spec 逐条核对通过；子代理线程上限，由主代理直接执行双轴），issue #8 已关闭并推送 main，P0 交付完成。
-
-## 4. 验收清单
+### P0（全部通过）
 
 - [x] 一键启动后前后端同时可用。
-- [x] 新增一条任务，能在计划页和聚合首页看到。（计划页已完成；聚合首页见 #7，2026-08-16 关闭）
-- [x] 写一篇 Markdown 日记，能预览、搜索、编辑、删除。
-- [x] 记一次番茄，今日统计更新；可绑定任务。（番茄记录、统计与任务绑定已完成，见 #8）
-- [x] 新增导航分类和链接，能置顶、搜索、编辑、删除。
-- [x] 聚合首页四块数据与各模块同步。（见 #7）
-- [x] 后端 API 冒烟测试通过（pytest 25 项）。
-- [x] 计划页支持本周计划/子任务/今日任务、复盘顺延与周导出。
+- [x] 计划页：本周计划/子任务/今日任务、复盘顺延、周导出。
+- [x] 日记页：Markdown 写、预览、搜索、编辑、删除；闪念便利贴。
+- [x] 番茄钟：专注/休息计时、今日统计、绑定任务。
+- [x] 导航页：分类/链接 CRUD、置顶、搜索、编辑、删除。
+- [x] 聚合首页四块数据与各模块同步。
+- [x] 后端 API 冒烟测试通过（pytest 全量通过）。
 - [x] `npm run build` 通过。
 
-## 5. 后续阶段展望
+### P1（进行中）
 
-- P1（进行中，2026-08-17 起）：学习笔记导入与全文检索、基于 GLM/embedding-3 的笔记问答和技术答题判分。
+- [ ] #14 笔记分块与向量索引。
+- [ ] #15 RAG 问答（GLM + embedding-3）。
+- [ ] #16 答题判分。
+- [ ] #17 统计与整体验收。
+
+## 6. 后续规划
+
+- P1（当前）：学习笔记全文检索与问答、技术答题判分。
 - P2：网页版桌宠（纯前端）。
 - P3：爬虫与小说阅读，只处理用户自有或已授权内容，遵守 robots 和限速。
 - 公网阶段：Docker、nginx、HTTPS、单密码或完整账号体系，开启 `AUTH_ENABLED`。
 
-## 6. 实施约定
+## 7. 实施约定
 
 - 代码改动后同步更新本文件，阶段完成后用业务语言说明作用。
 - 时间统一按 `Asia/Shanghai` 存储和展示。
 - 测试使用独立 SQLite 文件或临时目录，不污染真实数据。
 - 每个阶段完成并验证后再进入下一阶段。
-- 全站 UI 采用「纸感」主题：米色纸底、暖白卡片、细线边框、墨绿主色、衬线大标题；色板与字体定义在 `frontend/tailwind.config.js`，后续页面统一沿用，有问题再局部调整。
+- 全站 UI 采用「纸感」主题：米色纸底、暖白卡片、细线边框、墨绿主色、衬线大标题；色板与字体按 3.4 节三层架构维护。
+- 验证以最小必要为准：代码改动后至少 `npm run build` / pytest 全量通过，重要改动做冒烟并清理测试数据。
 
-## 7. 工程工作流
+## 8. 工程工作流
 
-标准流程、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)。以下为仓库进度与迭代记录。
+标准流程、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)。新功能/修复按该文档执行；架构重构需求先出方案并经确认后再实施。
 
-当前进度（2026-08-16）：#2 项目骨架、#3 导航模块（含书签墙视觉改版 + favicon 后端缓存 + 日记/导航 Pinia 缓存）、#4 计划任务模块、#5 日记模块（含「便利贴闪念 + 信纸日记 + 图表」改版）、#6 番茄钟（含视觉改版 + 全局小窗计时 + 绑定任务）、#7 聚合首页（/api/dashboard + 首页四块数据）、#8 番茄绑定任务与整体验收均已确认关闭并推送 main；P0 交付完成，frontier 清空。
+## 9. 迭代记录
 
-**P1 学习模块（2026-08-17，SPEC #11 / 票 #12–#17）**
-- 定稿：UI 原型（`design-mockups/learn/`）——侧边栏单个「笔记」入口，页内「学习笔记 / 问答 / 答题」三页签；笔记页卡片 + 信纸弹窗直接编辑；问答按「项目 / 最近」分组；答题为选择题/填空题 + YAML 文件级分类题库。
-- 模型：`zai-sdk`，`embedding-3` 向量 + `glm-4.7-flash` 问答（`ZHIPU_API_KEY` 在 backend/.env，不入库）。
-- #12 笔记模块（已实现并通过双轴 review）：后端 `notes` 表 + Markdown 落盘 `backend/data/notes/<文件夹>/<标题>.md`（同名自动改名、UTF-8 乱码提示）、粘贴新建/批量上传/文件夹导入、文件夹与标签管理、关键词检索、直接编辑（Ctrl+S、未保存提示、删除同步删文件）；前端 `/notes` 路由 + 侧边栏入口 + 三页签 + 卡片/信纸编辑 + 搜索高亮 + 导入弹窗。验证：pytest 53 项全量通过；`npm run build` 通过；双轴 review 通过（修复 readerNote 崩溃、搜索高亮、死代码等）。
-- #13 题库管理与 YAML 批量导入（已实现并通过双轴 review）：后端 `questions` 表（含 `accept` 可接受答案）、CRUD、YAML 文件级分类导入（解析→校验→预览→确认）、`quiz-template.yaml` 下载、SQLite 轻量迁移；前端「题库管理」弹窗（格式说明/导入/下载）。修复：accept 存储、YAML `no` 键布尔陷阱（模板键加引号）、null 防御。
-- 当前 frontier：#14 分块与向量索引 → #15 RAG 问答；#16 答题判分 → #17 统计与整体验收。
+### 2026-08-17：P1 学习模块启动 + 架构整理
 
-**架构整理 A：后端业务下沉与样板去重（2026-08-17）**
-- 背景：项目随 P1 学习模块扩展后，8 个 router 出现 CRUD 样板重复（404 查询、字段转换、add/commit/refresh），tags 序列化在 diary/notes/dashboard 三处逐字重复，任务联动/周导出/聚合等真实业务规则直接写在 HTTP 层。
-- 改动：新增 6 个 service（`services/tags.py` 共享标签序列化；`services/tasks.py`、`services/diary.py`、`services/notes.py`、`services/quiz.py`、`services/dashboard.py` 承接各模块业务规则），router 只保留 HTTP 参数与响应模型；dashboard 复用 `tasks.task_to_out`，消除任务字段转换与标签转换的重复实现。
-- 业务收益：业务规则（任务-子任务联动、顺延、周导出、笔记改名移文件、题库导入、聚合首页）都收进各自 service 的固定接缝，改一处全局生效；后续新增模块按 service 模式写，不必再复制 router 样板。
-- 验证：全量 pytest 53 项通过；前端零改动，`npm run build` 不受影响。
+- SPEC #11 定稿，票 #12–#17 入 frontier；#12 笔记模块、#13 题库管理已完成并通过双轴 review（pytest 53 项全量通过）。
+- 架构整理 A：后端业务下沉 service（tags/tasks/diary/notes/quiz/dashboard），router 只留 HTTP 层。
+- 架构整理 B：前端视图拆分——新增 `BaseModal` 与 `utils/highlight.js`，Plans/Nav/Diary/Notes 弹窗全部拆成独立组件，API 调用下沉 Pinia store。
+- 架构整理 C：CSS 三层架构——全局主题令牌 + `@layer components` 公共类 + 页面专属 scoped；删除 7 个文件局部变量，把约 2,300 行自定义样式中重复的公共类收进全局层，番茄钟/计划页硬编码色值统一换变量（见 3.4 节）。
 
-**架构整理 B：前端视图拆分试点（笔记页，2026-08-17）**
-- 背景：前端页面随功能膨胀（DiaryView 1388 行、PlansView 744 行、NotesView 540 行），弹窗遮罩壳在页面间重复，搜索高亮函数在 NotesView/NavView 各有一份。
-- 改动（试点笔记页）：新增共享组件 `BaseModal`（收编 NotesView 3 处、PlansView 4 处重复的弹窗遮罩壳）；新增 `utils/highlight.js`（转义 + 关键词高亮，替换 NotesView 内实现，NavView 待其页面轮次替换）；笔记页拆成三个子组件（`NoteEditorModal` 信纸编辑、`ImportNotesModal` 导入、`QuizManageModal` 题库管理），NotesView 从 540 行降到 172 行，只留页签/列表/搜索与弹窗编排；数据流保持「视图编排、store 管数据」。
-- 业务收益：改笔记编辑/导入/题库管理任一功能时，定位范围从整页缩到一个独立组件；后续计划/日记/导航页拆分直接复用 BaseModal 与高亮工具。
-- 验证：`vite build` 通过，NotesView 独立 chunk 正常；交互行为保持（弹窗、Ctrl+S、未保存守卫、确认删除均原样保留）。
+### 2026-08-16：P0 收尾
 
-**架构整理 B 续：计划/导航/日记页拆分（2026-08-17）**
-- 改动：把「视图编排、store 管数据」落实到位——计划页 15 处、导航页 4 处、日记页 6 处的直连 API 全部收进各自 Pinia store（plans/nav/diary 新增 save/delete/rollover/export 等 action）；PlansView 拆出 4 个表单弹窗组件（计划/子任务/任务/复盘），NavView 拆出 `NavModal`（分类+链接表单）并换用共享高亮工具，DiaryView 拆出 3 个弹窗组件（信纸编辑/往日记录/详情）。页面行数：PlansView 744→577、NavView 772→513、DiaryView 1388→833，弹窗独立成 10 个可单独维护的组件文件。
-- 业务收益：改某个表单或弹窗时不用再在几百行的页面里翻找；CRUD 调用统一从 store 走，后续加字段/换接口只动 store 一处；四个大页面之间共用 BaseModal 与高亮工具，风格趋于一致。
-- 验证：`vite build` 通过（119 模块，BaseModal/highlight 抽成共享 chunk）；交互行为保持（列宽拖拽记忆、顺延复盘、标签弹层、确认删除均原样）。
+- 聚合首页 #7（`/api/dashboard` + HomeView 四张卡片）、导航页书签墙改版与 favicon 本地缓存（#3 收尾）、日记/导航 Pinia 缓存、往日记录详情与删除（#9/#10）、整体验收 #8（番茄绑定任务、一键启动、全流程冒烟），P0 交付完成。
 
-浏览器批注迭代（2026-08-15）：按 design-mockups 定稿还原日记信纸排版（`.letter` 恢复 flex 纵向布局，正文横线铺满整页信纸）；番茄钟编辑时长输入框去掉默认分钟数占位（编辑时留空等待输入）；修复番茄钟圆环容器 class 与 Tailwind `ring` 工具类撞名导致的蓝色描边方框（改名为 `ring-wrap`）。
+### 2026-08-15：核心页面与视觉改版
 
-**导航页改版（2026-08-16，issue #3）**
-- 原型定稿（`design-mockups/nav/index.html`，C「书签墙」单变体，已去掉 A/B 与切换条）：顶部固定搜索栏（搜索标题、分类或网址，支持分类名匹配）；顶栏「新增」图标+文字按钮，点击弹出新建分类/新建链接弹窗；「常用」置顶胶囊条（仅网站图标，加载失败回退地球图标，右上角悬停编辑角标）；分类分带密集铺开，分类头只有名称+数量；磁贴悬停右上角单个编辑图标（编辑/删除合并入口，悬停淡入动画）。
-- favicon 方案（用户确认）：后端抓取一次缓存成本地文件（`backend/data/favicons/`），TTL 7 天刷新，不再用 Google 动态获取。
-- 实现：后端 `app/services/favicon.py`（抓取 → 本地缓存，TTL 7 天，旧缓存兜底）+ `GET /api/nav/favicons?domain=`；前端 `NavView.vue` 样式与定稿样板 HTML 完全一致（CSS 原样搬入，含搜索高亮、新增弹窗、编辑角标）。
-- 示例数据：已导入样板分类与网址（图片生成 / 写作助手 / 开发工具 / 日常，共 13 个链接），用户可自行调整。
-- 验证：`pytest` 6 项通过（nav + favicon）；`npm run build` 通过；真实抓取 github.com favicon 缓存成功（image/x-icon）。
-- favicon 增强（2026-08-16）：解析首页 HTML `<link rel="icon">` 真实图标地址（jimeng / deepseek 已验证可取到）；抓取失败负缓存 24h 不重试；超时 8s → 5s。
-- 收尾（2026-08-16）：双轴 code-review 通过（Standards 无硬性违规，Spec 逐条核验通过），issue #3 已关闭并推送 main。
+- 计划页 #4、日记页改版 #5（便利贴闪念 + 信纸日记 + 图表）、番茄钟改版 #6（藤蔓圆环 + 全局小窗）、导航页改版 #3 定稿；浏览器批注迭代（信纸排版、番茄时长输入框、`ring-wrap` 类名修复）。
 
-**UI 缓存（2026-08-16）**：日记页与导航页接入 Pinia store 缓存（`stores/diary.js`、`stores/nav.js`），与计划页一致——进入页面仅在未加载时拉取一次数据，写操作后刷新缓存。
+### 2026-08-14：骨架与后端
 
-**日记页往日记录详情与删除（2026-08-16，issue #9 SPEC / #10 实现）**
-- 需求（用户确认）：往日记录里的日记和闪念可点开查看详情，详情里可删除（带确认）；删除入口只放在详情里，避免列表上误删。
-- 原型定稿：A 居中弹窗——日记详情为信纸样式（标题/日期/标签/全文 + 右上「记」印章），闪念详情为便利贴样式（琥珀色纸底 + 顶部居中胶带，不旋转）；卡片比例偏正方形，操作区分隔线为虚线；原型完整三变体保存在一次性分支 `codex/prototype-diary-detail-delete`（不进 main）。
-- 实现：纯前端改动——「往日记录」列表行可点击，弹出居中详情卡；底部「删除」（先确认，删日记提示正文文件一并删除）与「关闭」，点遮罩也可关闭；删除复用现有 `DELETE /api/diary/{id}` 与 `DELETE /api/flash/{id}`，成功后列表与页面统计（总篇数/字数/连续记录/热力图等）自动刷新。
-- 验证结果：全量 `pytest` 35 项通过；`npm run build` 通过；手工冒烟点开日记/闪念详情、取消删除、确认删除后列表与统计刷新均正常。
-- 收尾（2026-08-16）：双轴 code-review 通过（Standards 无硬性违规；Spec 逐条核验通过），issue #10 已关闭并推送 main。
-
-**架构整理 C：CSS 三层架构（2026-08-17，已完成）**
-- 背景：视图与弹窗自定义 CSS 合计约 2,300 行（DiaryView 536、NavView 347、PomodoroView 325、HomeView 255，弹窗约 890），且出现三套写法并存：Tailwind 令牌类（App/计划/笔记页）、文件内局部 CSS 变量（首页/导航/日记/弹窗共 7 处各声明 10-15 个）、硬编码色值（番茄钟页直接写 `#fffefc`、`#0e7c74` 等）。公共组件样式（`.btn` 12 处、`.tag-chip` 2 处逐字重复、信纸头 `.head` 2 处逐字重复、遮罩 3 处）各自独立，改一处按钮样式要翻十几个文件。
-- 目标架构（三层）：第 0 层令牌——`style.css :root` 一次性定义全部 CSS 变量（与 `tailwind.config.js` 同值，约定同步维护）；第 1 层公共组件类——`@layer components` 定义 `.page` / `.card` `.paper` / `.btn` 系列 / `.tag` `.tag-chip` / `.error` 系列 / `.overlay` 系列 / `.modal` 外壳 / 日记信纸头 `.head`；第 2 层页面与组件专属样式——只在 scoped `<style>` 里保留真正页面独有视觉（信纸、便利贴、热力图、番茄圆环、导航磁贴等）。
-- 实施顺序（每个 commit 均 `npm run build` 验证、零视觉变化）：
- 1. 地基：`style.css` 建 `:root` 令牌 + `@layer components` 公共类，删除 7 个文件的局部变量声明；
- 2. 逐页瘦身：HomeView → DiaryView → NavView → PomodoroView（顺带 PlansView 硬编码色值换变量），删公共类副本、保留页面专属样式；
- 3. 弹窗瘦身：DetailModal / HistoryModal / DiaryEditorModal / NavModal / FloatingTimer / NoteEditorModal，同法处理；
- 4. 收尾：清理死类，plan.md 同步。
-- 完成情况：全部 5 个代码 commit + 本 docs commit；`npm run build` 通过（119 模块）。页面 CSS chunk 减小：DiaryView 18.88→14.77 kB、NavView 7.90→7.00 kB、HomeView 3.89→3.33 kB；公共类只存在于全局 index chunk，页面 chunk 不再重复。局部变量声明从 7 个文件全部移除；番茄钟/计划页/浮动计时器约 40 处硬编码色值统一换为主题变量（色值不变）。
-- 已知残留（本次不处理）：笔记页 `.letter` 与日记信纸 `.letter` 视觉不同，保持各自 scoped；`.page-head`、`.search`、`.icon-btn` 等各页尺寸/结构有差异，暂不强行合并；`--green` 系深浅色（如 `#c9e2d5`、`#5d8f76`）仅个别组件使用，保持局部。
-- 业务收益：主题和按钮/标签/卡片/遮罩只维护一处，改样式不再翻十几个文件；新增页面大部分直接复用公共类，自带一致的纸感风格；页面专属视觉仍保留在各自 scoped 样式里，不影响定制空间。
+- 项目骨架 #2、后端数据层与五模块 API（#3–#6 后端部分）、四页初版（#3–#6）。
