@@ -268,6 +268,11 @@ personal_website/
 - 业务收益：改笔记编辑/导入/题库管理任一功能时，定位范围从整页缩到一个独立组件；后续计划/日记/导航页拆分直接复用 BaseModal 与高亮工具。
 - 验证：`vite build` 通过，NotesView 独立 chunk 正常；交互行为保持（弹窗、Ctrl+S、未保存守卫、确认删除均原样保留）。
 
+**架构整理 B 续：计划/导航/日记页拆分（2026-08-17）**
+- 改动：把「视图编排、store 管数据」落实到位——计划页 15 处、导航页 4 处、日记页 6 处的直连 API 全部收进各自 Pinia store（plans/nav/diary 新增 save/delete/rollover/export 等 action）；PlansView 拆出 4 个表单弹窗组件（计划/子任务/任务/复盘），NavView 拆出 `NavModal`（分类+链接表单）并换用共享高亮工具，DiaryView 拆出 3 个弹窗组件（信纸编辑/往日记录/详情）。页面行数：PlansView 744→577、NavView 772→513、DiaryView 1388→833，弹窗独立成 10 个可单独维护的组件文件。
+- 业务收益：改某个表单或弹窗时不用再在几百行的页面里翻找；CRUD 调用统一从 store 走，后续加字段/换接口只动 store 一处；四个大页面之间共用 BaseModal 与高亮工具，风格趋于一致。
+- 验证：`vite build` 通过（119 模块，BaseModal/highlight 抽成共享 chunk）；交互行为保持（列宽拖拽记忆、顺延复盘、标签弹层、确认删除均原样）。
+
 浏览器批注迭代（2026-08-15）：按 design-mockups 定稿还原日记信纸排版（`.letter` 恢复 flex 纵向布局，正文横线铺满整页信纸）；番茄钟编辑时长输入框去掉默认分钟数占位（编辑时留空等待输入）；修复番茄钟圆环容器 class 与 Tailwind `ring` 工具类撞名导致的蓝色描边方框（改名为 `ring-wrap`）。
 
 **导航页改版（2026-08-16，issue #3）**
