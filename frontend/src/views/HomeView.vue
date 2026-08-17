@@ -99,7 +99,7 @@ onMounted(load)
             <RouterLink to="/diary" class="diary-link">
               <span class="diary-date">{{ entry.date }}</span>
               <span class="diary-title">{{ entry.title }}</span>
-              <span v-for="tag in entry.tags" :key="tag" class="tag">{{ tag }}</span>
+<span v-for="tag in entry.tags" :key="tag" class="tag-sm">{{ tag }}</span>
             </RouterLink>
           </li>
         </ul>
@@ -139,12 +139,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.page {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 40px 28px 90px;
-}
-
 h1,
 h2 {
   font-family: var(--serif);
@@ -176,24 +170,11 @@ a {
   font-size: 14px;
   margin: 0 0 16px;
 }
-.note-error {
-  color: var(--red, #c4533a);
-  background: var(--red-soft, #f9ebe5);
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
 .grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 18px;
   align-items: start;
-}
-.card {
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  border-radius: 14px;
-  padding: 18px 20px;
 }
 .span-2 {
   grid-column: span 2;
@@ -301,15 +282,6 @@ a {
 .diary-link:hover .diary-title {
   color: var(--teal);
 }
-.tag {
-  flex-shrink: 0;
-  font-size: 11px;
-  color: var(--sub);
-  background: var(--paper-soft);
-  border-radius: 999px;
-  padding: 1px 8px;
-}
-
 .link-row {
   display: flex;
   align-items: center;
@@ -374,12 +346,6 @@ a {
   }
   .span-2 {
     grid-column: span 1;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    animation: none !important;
   }
 }
 </style>

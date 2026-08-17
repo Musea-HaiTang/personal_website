@@ -39,6 +39,12 @@
   .paper {
     background: var(--card);
     border: 1px solid var(--hairline);
+  }
+  .card {
+    border-radius: 14px;
+    padding: 18px 20px;
+  }
+  .paper {
     border-radius: 12px;
     box-shadow: 0 1px 3px rgba(43, 38, 34, 0.05);
   }

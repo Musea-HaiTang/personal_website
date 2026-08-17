@@ -196,12 +196,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.page {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 40px 28px 90px;
-}
-
 h1,
 h2,
 h3 {
@@ -258,13 +252,6 @@ button {
   font-size: 14px;
   margin: 0 0 16px;
 }
-.nav-error {
-  color: var(--red);
-  background: var(--red-soft);
-  border-radius: 8px;
-  padding: 8px 12px;
-}
-
 .tile-icon {
   position: relative;
   width: 46px;
@@ -518,12 +505,6 @@ button {
   }
   .vc-bar-actions {
     justify-content: flex-end;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    animation: none !important;
   }
 }
 </style>
