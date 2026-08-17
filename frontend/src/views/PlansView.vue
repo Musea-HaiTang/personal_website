@@ -1,11 +1,15 @@
-﻿<script setup>
+<script setup>
 import { computed, onMounted, ref } from 'vue'
 import { storeToRefs } from 'pinia'
-import api from '../api'
+
+import PlanModal from '../components/plans/PlanModal.vue'
+import ReviewModal from '../components/plans/ReviewModal.vue'
+import SubtaskModal from '../components/plans/SubtaskModal.vue'
+import TaskModal from '../components/plans/TaskModal.vue'
 import { usePlansStore } from '../stores/plans'
 import { isoWeek, today, weekEnd, weekStart } from '../utils/date'
 
-// ---------- 日期工具 ----------
+// ---------- 日期与展示 ----------
 function formatWhen(iso) {
   if (!iso) return ''
   return iso.slice(5, 10).replace('-', '-') + ' ' + iso.slice(11, 16)
@@ -83,24 +87,15 @@ function planProgress(plan) {
 
 // ---------- 计划 CRUD ----------
 const planModal = ref(false)
-const planForm = ref({ id: null, title: '', importance: 2, note: '' })
+const planEditing = ref(null)
 function openPlanModal(plan = null) {
-  planForm.value = plan
-    ? { id: plan.id, title: plan.title, importance: plan.importance, note: plan.note || '' }
-    : { id: null, title: '', importance: 2, note: '' }
+  planEditing.value = plan
   planModal.value = true
 }
-async function savePlan() {
-  const payload = {
-    title: planForm.value.title.trim(),
-    importance: Number(planForm.value.importance),
-    note: planForm.value.note.trim() || null,
-    week_start: weekStart,
-  }
+async function savePlan(payload) {
   if (!payload.title) return
   try {
-    if (planForm.value.id) await api.put(`/plans/${planForm.value.id}`, payload)
-    else await api.post('/plans', payload)
+    await plansStore.savePlan({ ...payload, id: planEditing.value?.id ?? null, week_start: weekStart })
     planModal.value = false
     await refresh()
   } catch (e) {
@@ -110,7 +105,7 @@ async function savePlan() {
 async function deletePlan(plan) {
   if (!confirm(`确定删除计划「${plan.title}」？其子任务也会一并删除。`)) return
   try {
-    await api.delete(`/plans/${plan.id}`)
+    await plansStore.deletePlan(plan.id)
     await refresh()
   } catch (e) {
     error.value = e.response?.data?.detail || '删除计划失败'
@@ -119,23 +114,15 @@ async function deletePlan(plan) {
 
 // ---------- 子任务 CRUD ----------
 const subModal = ref(false)
-const subForm = ref({ id: null, name: '', importance: 2, note: '' })
+const subEditing = ref(null)
 function openSubModal(subtask = null) {
-  subForm.value = subtask
-    ? { id: subtask.id, name: subtask.name, importance: subtask.importance, note: subtask.note || '' }
-    : { id: null, name: '', importance: 2, note: '' }
+  subEditing.value = subtask
   subModal.value = true
 }
-async function saveSubtask() {
-  const payload = {
-    name: subForm.value.name.trim(),
-    importance: Number(subForm.value.importance),
-    note: subForm.value.note.trim() || null,
-  }
+async function saveSubtask(payload) {
   if (!payload.name || !selectedPlan.value) return
   try {
-    if (subForm.value.id) await api.put(`/subtasks/${subForm.value.id}`, payload)
-    else await api.post(`/plans/${selectedPlan.value.id}/subtasks`, payload)
+    await plansStore.saveSubtask({ ...payload, id: subEditing.value?.id ?? null, plan_id: selectedPlan.value.id })
     subModal.value = false
     await refresh()
   } catch (e) {
@@ -144,7 +131,7 @@ async function saveSubtask() {
 }
 async function toggleSubtask(subtask) {
   try {
-    await api.put(`/subtasks/${subtask.id}`, { completed: !subtask.completed })
+    await plansStore.updateSubtask(subtask.id, { completed: !subtask.completed })
     await refresh()
   } catch (e) {
     error.value = e.response?.data?.detail || '切换子任务失败'
@@ -153,7 +140,7 @@ async function toggleSubtask(subtask) {
 async function deleteSubtask(subtask) {
   if (!confirm(`确定删除子任务「${subtask.name}」？`)) return
   try {
-    await api.delete(`/subtasks/${subtask.id}`)
+    await plansStore.deleteSubtask(subtask.id)
     await refresh()
   } catch (e) {
     error.value = e.response?.data?.detail || '删除子任务失败'
@@ -162,49 +149,14 @@ async function deleteSubtask(subtask) {
 
 // ---------- 今日任务 CRUD ----------
 const taskModal = ref(false)
-const taskForm = ref({ id: null, title: '', importance: 2, date: today, note: '', planId: null, subtaskId: null })
-const pickedSub = ref(null)
-const pickableSubs = computed(() => {
-  const plan = plans.value.find((p) => p.id === Number(taskForm.value.planId))
-  return plan ? plan.subtasks.filter((s) => !s.completed) : []
-})
+const taskEditing = ref(null)
 function openTaskModal(task = null) {
-  pickedSub.value = null
-  taskForm.value = task
-    ? {
-        id: task.id,
-        title: task.title,
-        importance: task.importance,
-        date: task.date,
-        note: task.note || '',
-        planId: task.plan_id,
-        subtaskId: task.subtask_id,
-      }
-    : { id: null, title: '', importance: 2, date: today, note: '', planId: null, subtaskId: null }
+  taskEditing.value = task
   taskModal.value = true
 }
-function onPlanChange() {
-  taskForm.value.subtaskId = null
-  pickedSub.value = null
-}
-function pickSubtask(sub) {
-  pickedSub.value = sub
-  taskForm.value.subtaskId = sub.id
-  taskForm.value.title = sub.name
-}
-async function saveTask() {
-  const payload = {
-    title: taskForm.value.title.trim(),
-    importance: Number(taskForm.value.importance),
-    date: taskForm.value.date,
-    note: taskForm.value.note.trim() || null,
-    plan_id: taskForm.value.planId ? Number(taskForm.value.planId) : null,
-    subtask_id: taskForm.value.subtaskId ? Number(taskForm.value.subtaskId) : null,
-  }
-  if (!payload.title || !payload.date) return
+async function saveTask(payload) {
   try {
-    if (taskForm.value.id) await api.put(`/tasks/${taskForm.value.id}`, payload)
-    else await api.post('/tasks', payload)
+    await plansStore.saveTask({ ...payload, id: taskEditing.value?.id ?? null })
     taskModal.value = false
     await refresh()
   } catch (e) {
@@ -213,16 +165,17 @@ async function saveTask() {
 }
 async function toggleTask(task) {
   try {
-    await api.put(`/tasks/${task.id}`, { completed: !task.completed })
+    await plansStore.updateTask(task.id, { completed: !task.completed })
     await refresh()
   } catch (e) {
     error.value = e.response?.data?.detail || '切换任务失败'
   }
 }
-async function deleteTask(task) {
-  if (!confirm(`确定删除任务「${task.title}」？`)) return
+async function deleteTask() {
+  if (!taskEditing.value) return
+  if (!confirm(`确定删除任务「${taskEditing.value.title}」？`)) return
   try {
-    await api.delete(`/tasks/${task.id}`)
+    await plansStore.deleteTask(taskEditing.value.id)
     taskModal.value = false
     await refresh()
   } catch (e) {
@@ -233,24 +186,21 @@ async function deleteTask(task) {
 // ---------- 复盘 / 顺延 ----------
 const reviewModal = ref(false)
 const reviewTask = ref(null)
-const reviewNote = ref('')
 function openReview(task) {
   reviewTask.value = task
-  reviewNote.value = task.review_note || ''
   reviewModal.value = true
 }
 async function rolloverOne(task, note = '') {
   try {
-    if (note) await api.put(`/tasks/${task.id}`, { review_note: note })
-    await api.post(`/tasks/${task.id}/rollover`)
+    await plansStore.rolloverTask(task.id, note)
     await refresh()
   } catch (e) {
     error.value = e.response?.data?.detail || '顺延失败'
   }
 }
-async function confirmRollover() {
+async function confirmRollover(note) {
   if (!reviewTask.value) return
-  await rolloverOne(reviewTask.value, reviewNote.value.trim())
+  await rolloverOne(reviewTask.value, note)
   reviewModal.value = false
 }
 async function rolloverAll() {
@@ -261,7 +211,7 @@ async function rolloverAll() {
 async function reopenTask(task) {
   if (!confirm(`确定把「${task.title}」重新打开，回到今日列表吗？`)) return
   try {
-    await api.put(`/tasks/${task.id}`, { completed: false })
+    await plansStore.updateTask(task.id, { completed: false })
     await refresh()
   } catch (e) {
     error.value = e.response?.data?.detail || '重新打开失败'
@@ -271,16 +221,7 @@ async function reopenTask(task) {
 // ---------- 导出 ----------
 async function exportWeek() {
   try {
-    const { data } = await api.get('/plans/week/export', {
-      params: { week_start: weekStart },
-      responseType: 'blob',
-    })
-    const url = URL.createObjectURL(data)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `周计划-${weekStart}.md`
-    a.click()
-    URL.revokeObjectURL(url)
+    await plansStore.exportWeek()
   } catch (e) {
     error.value = e.response?.data?.detail || '导出失败'
   }
@@ -377,7 +318,7 @@ onMounted(async () => {
             ＋ 添加任务
           </button>
         </div>
-<div id="task-head" class="grid gap-x-2 bg-paper-soft px-4 py-2 text-xs font-semibold text-sub" :style="{ gridTemplateColumns: colsTask }">
+        <div id="task-head" class="grid gap-x-2 bg-paper-soft px-4 py-2 text-xs font-semibold text-sub" :style="{ gridTemplateColumns: colsTask }">
           <span></span>
           <span class="relative">名字<span class="resize-handle" @mousedown="startResize($event, 'task', 2)"></span></span>
           <span class="relative">标签<span class="resize-handle" @mousedown="startResize($event, 'task', 3)"></span></span>
@@ -603,121 +544,11 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- 任务弹窗（新增 / 详情编辑） -->
-    <div v-if="taskModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="taskModal = false">
-      <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-        <h3 class="mb-4 text-lg font-semibold">{{ taskForm.id ? '任务详情' : '添加今日任务' }}</h3>
-        <form @submit.prevent="saveTask">
-          <label class="mb-1 block text-sm text-sub">内容</label>
-          <input v-model="taskForm.title" type="text" required class="mb-3 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
-          <div class="mb-3 grid grid-cols-2 gap-3">
-            <div>
-              <label class="mb-1 block text-sm text-sub">重要度</label>
-              <select v-model="taskForm.importance" class="w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none">
-                <option :value="1">低</option>
-                <option :value="2">中</option>
-                <option :value="3">高</option>
-              </select>
-            </div>
-            <div>
-              <label class="mb-1 block text-sm text-sub">日期</label>
-              <input v-model="taskForm.date" type="date" required class="w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
-            </div>
-          </div>
-          <label class="mb-1 block text-sm text-sub">所属计划（可留空）</label>
-          <select v-model="taskForm.planId" class="mb-3 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" @change="onPlanChange">
-            <option :value="null">（不归属计划）</option>
-            <option v-for="plan in plans" :key="plan.id" :value="plan.id">{{ plan.title }}</option>
-          </select>
-          <div v-if="!taskForm.id && taskForm.planId && pickableSubs.length" class="mb-3 rounded-lg bg-teal-soft p-3">
-            <p class="mb-2 text-xs font-semibold text-teal">从本周计划子任务挑选（点一个自动带过来）</p>
-            <button
-              v-for="sub in pickableSubs"
-              :key="sub.id"
-              type="button"
-              class="mb-1 mr-1 rounded-full border px-3 py-1 text-xs"
-              :class="taskForm.subtaskId === sub.id ? 'border-teal bg-teal font-semibold text-white' : 'border-hairline bg-card text-sub hover:border-teal'"
-              @click="pickSubtask(sub)"
-            >
-              {{ sub.name }}
-            </button>
-          </div>
-          <label class="mb-1 block text-sm text-sub">备注</label>
-          <textarea v-model="taskForm.note" rows="3" class="mb-4 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none"></textarea>
-          <div class="flex justify-between gap-2">
-            <button v-if="taskForm.id" type="button" class="rounded-lg border border-red px-4 py-2 text-sm text-red hover:bg-red-soft" @click="deleteTask(taskForm)">
-              删除
-            </button>
-            <span v-else></span>
-            <div class="flex gap-2">
-              <button type="button" class="rounded-lg border border-hairline px-4 py-2 text-sm" @click="taskModal = false">取消</button>
-              <button type="submit" class="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal-dark">保存</button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- 计划弹窗 -->
-    <div v-if="planModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="planModal = false">
-      <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-        <h3 class="mb-4 text-lg font-semibold">{{ planForm.id ? '编辑计划' : '添加本周计划' }}</h3>
-        <form @submit.prevent="savePlan">
-          <label class="mb-1 block text-sm text-sub">计划名称</label>
-          <input v-model="planForm.title" type="text" required class="mb-3 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
-          <label class="mb-1 block text-sm text-sub">重要度</label>
-          <select v-model="planForm.importance" class="mb-3 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none">
-            <option :value="1">低</option>
-            <option :value="2">中</option>
-            <option :value="3">高</option>
-          </select>
-          <label class="mb-1 block text-sm text-sub">备注（可选）</label>
-          <textarea v-model="planForm.note" rows="2" class="mb-4 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none"></textarea>
-          <div class="flex justify-end gap-2">
-            <button type="button" class="rounded-lg border border-hairline px-4 py-2 text-sm" @click="planModal = false">取消</button>
-            <button type="submit" class="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal-dark">保存</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- 子任务弹窗 -->
-    <div v-if="subModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="subModal = false">
-      <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-        <h3 class="mb-4 text-lg font-semibold">{{ subForm.id ? '编辑子任务' : '添加子任务' }}</h3>
-        <form @submit.prevent="saveSubtask">
-          <label class="mb-1 block text-sm text-sub">名字</label>
-          <input v-model="subForm.name" type="text" required class="mb-3 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" />
-          <label class="mb-1 block text-sm text-sub">重要度</label>
-          <select v-model="subForm.importance" class="mb-3 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none">
-            <option :value="1">低</option>
-            <option :value="2">中</option>
-            <option :value="3">高</option>
-          </select>
-          <label class="mb-1 block text-sm text-sub">备注（可选）</label>
-          <textarea v-model="subForm.note" rows="2" class="mb-4 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none"></textarea>
-          <div class="flex justify-end gap-2">
-            <button type="button" class="rounded-lg border border-hairline px-4 py-2 text-sm" @click="subModal = false">取消</button>
-            <button type="submit" class="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal-dark">保存</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- 复盘弹窗 -->
-    <div v-if="reviewModal && reviewTask" class="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" @click.self="reviewModal = false">
-      <div class="w-full max-w-md rounded-xl bg-card p-6 shadow-xl">
-        <h3 class="mb-4 text-lg font-semibold">计划复盘</h3>
-        <p class="mb-1 text-sm text-sub">任务</p>
-        <p class="mb-4 rounded-lg border border-hairline bg-paper-soft px-3 py-2 text-sm font-semibold text-ink">{{ reviewTask.title }}</p>
-        <label class="mb-1 block text-sm text-sub">说明（可选）</label>
-        <textarea v-model="reviewNote" rows="3" class="mb-4 w-full rounded-lg border border-hairline px-3 py-2 text-sm focus:border-teal focus:outline-none" placeholder="写下为什么没完成，方便之后复盘…"></textarea>
-        <div class="flex justify-end gap-2">
-          <button class="rounded-lg border border-hairline px-4 py-2 text-sm" @click="reviewModal = false">取消</button>
-          <button class="rounded-lg bg-teal px-4 py-2 text-sm font-semibold text-white hover:bg-teal-dark" @click="confirmRollover">顺延到明天</button>
-        </div>
-      </div>
-    </div>
+    <!-- 弹窗 -->
+    <PlanModal v-if="planModal" :plan="planEditing" @save="savePlan" @close="planModal = false" />
+    <SubtaskModal v-if="subModal" :subtask="subEditing" @save="saveSubtask" @close="subModal = false" />
+    <TaskModal v-if="taskModal" :task="taskEditing" :today="today" :plans="plans" @save="saveTask" @delete="deleteTask" @close="taskModal = false" />
+    <ReviewModal v-if="reviewModal && reviewTask" :task="reviewTask" @confirm="confirmRollover" @close="reviewModal = false" />
   </div>
 </template>
 

@@ -1,7 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
-import api from '../api'
+import { computed, onMounted, ref } from 'vue'
+
+import NavModal from '../components/nav/NavModal.vue'
 import { useNavStore } from '../stores/nav'
+import { hlHtml } from '../utils/highlight'
 
 const navStore = useNavStore()
 const categories = computed(() => navStore.categories)
@@ -10,15 +12,14 @@ const loading = ref(false)
 const error = computed(() => navStore.error)
 const iconFailed = ref(new Set())
 
-const modal = reactive({ visible: false, mode: 'add', tab: 'link', editing: null })
-const categoryForm = reactive({ name: '' })
-const linkForm = reactive({ title: '', url: '', description: '', category_id: null, is_pinned: false })
-const formError = ref('')
+const modalOpen = ref(false)
+const modalMode = ref('add')
+const modalEditing = ref(null)
 
 const ICON_EDIT =
   '<svg viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="M526.41 117.029v58.514a7.314 7.314 0 0 1-7.315 7.314H219.429a36.571 36.571 0 0 0-35.987 29.989l-0.585 6.583V804.57a36.571 36.571 0 0 0 29.989 35.987l6.583 0.585H804.57a36.571 36.571 0 0 0 35.987-29.989l0.585-6.583v-317.44a7.314 7.314 0 0 1 7.314-7.314h58.514a7.314 7.314 0 0 1 7.315 7.314v317.44a109.714 109.714 0 0 1-99.182 109.203l-10.533 0.512H219.43a109.714 109.714 0 0 1-109.203-99.182l-0.512-10.533V219.43a109.714 109.714 0 0 1 99.182-109.203l10.533-0.512h299.666a7.314 7.314 0 0 1 7.314 7.315z m307.345 31.817l41.4 41.399a7.314 7.314 0 0 1 0 10.313L419.985 655.726a7.314 7.314 0 0 1-10.313 0l-41.399-41.4a7.314 7.314 0 0 1 0-10.312l455.168-455.168a7.314 7.314 0 0 1 10.313 0z"/></svg>'
 const ICON_ADD =
-  '<svg viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="M512 1023.914667c-281.315556 0-509.269333-229.205333-509.269333-511.943111C2.730667 229.176889 230.684444 0.028444 512 0.028444c281.230222 0 509.240889 229.148444 509.240889 511.943112 0 282.794667-227.925333 511.943111-509.240889 511.943111z m0-955.704889c-243.768889 0-441.372444 198.656-441.372444 443.704889 0 244.963556 197.603556 443.676444 441.372444 443.676444 243.740444 0 441.287111-198.627556 441.344-443.676444 0-245.048889-197.603556-443.704889-441.344-443.704889z m234.382222 473.6h-199.822222l-0.881778 228.721778c0 8.476444 1.820444 44.8-37.432889 44.8-37.262222 0-33.536-23.978667-33.536-42.069334l0.085334-231.395555H255.260444c-14.336 0-31.374222 0.085333-31.374222-43.747556 0-32.568889 39.850667-28.871111 39.850667-28.871111h211.057778V248.547556c0-14.449778 11.121778-27.306667 35.84-25.856 24.718222 1.422222 35.84 11.463111 35.84 25.856v220.700444h199.850666s45.539556-5.944889 45.084445 34.588444c-0.483556 40.561778-35.868444 37.973333-45.027556 37.973334z"/></svg>'
+  '<svg viewBox="0 0 1024 1024" fill="currentColor" aria-hidden="true"><path d="M512 1023.914667c-281.315556 0-509.269333-229.205333-509.269333-511.943111C2.730667 229.176889 230.684444 0.028444 512 0.028444c281.230222 0 509.240889 229.148444 509.240889 511.943112 0 282.794667-227.925333 509.240889 511.943111-509.240889 511.943111z m0-955.704889c-243.768889 0-441.372444 198.656-441.372444 443.704889 0 244.963556 197.603556 443.676444 441.372444 443.676444 243.740444 0 441.287111-198.627556 441.344-443.676444 0-245.048889-197.603556-443.704889-441.344-443.704889z m234.382222 473.6h-199.822222l-0.881778 228.721778c0 8.476444 1.820444 44.8-37.432889 44.8-37.262222 0-33.536-23.978667-33.536-42.069334l0.085334-231.395555H255.260444c-14.336 0-31.374222 0.085333-31.374222-43.747556 0-32.568889 39.850667-28.871111 39.850667-28.871111h211.057778V248.547556c0-14.449778 11.121778-27.306667 35.84-25.856 24.718222 1.422222 35.84 11.463111 35.84 25.856v220.700444h199.850666s45.539556-5.944889 45.084445 34.588444c-0.483556 40.561778-35.868444 37.973333-45.027556 37.973334z"/></svg>'
 
 async function loadData() {
   loading.value = true
@@ -46,25 +47,6 @@ const filteredCategories = computed(() => {
 const pinnedLinks = computed(() =>
   filteredCategories.value.flatMap((cat) => cat.links).filter((link) => link.is_pinned)
 )
-
-function esc(s) {
-  return String(s ?? '').replace(/[&<>"']/g, (c) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#39;'
-  }[c]))
-}
-
-function hl(text) {
-  const kw = keyword.value.trim()
-  const s = esc(text)
-  if (!kw) return s
-  const idx = s.toLowerCase().indexOf(kw.toLowerCase())
-  if (idx === -1) return s
-  return s.slice(0, idx) + '<mark class="hl">' + s.slice(idx, idx + kw.length) + '</mark>' + s.slice(idx + kw.length)
-}
 
 function domainOf(url) {
   try {
@@ -106,96 +88,16 @@ function iconStyle(link) {
   return { '--bg': bg, '--fg': fg }
 }
 
-function resetForms() {
-  categoryForm.name = ''
-  linkForm.title = ''
-  linkForm.url = ''
-  linkForm.description = ''
-  linkForm.category_id = categories.value[0]?.id || null
-  linkForm.is_pinned = false
-  formError.value = ''
-}
-
 function openAdd() {
-  resetForms()
-  modal.mode = 'add'
-  modal.tab = 'link'
-  modal.editing = null
-  modal.visible = true
+  modalMode.value = 'add'
+  modalEditing.value = null
+  modalOpen.value = true
 }
 
 function openEdit(link) {
-  resetForms()
-  modal.mode = 'edit'
-  modal.tab = 'link'
-  modal.editing = link
-  linkForm.title = link.title
-  linkForm.url = link.url
-  linkForm.description = link.description || ''
-  linkForm.category_id = link.category_id
-  linkForm.is_pinned = link.is_pinned
-  modal.visible = true
-}
-
-function closeModal() {
-  modal.visible = false
-}
-
-function save() {
-  if (modal.tab === 'category') saveCategory()
-  else saveLink()
-}
-
-async function saveCategory() {
-  const name = categoryForm.name.trim()
-  if (!name) {
-    formError.value = '请输入分类名称'
-    return
-  }
-  try {
-    await api.post('/nav/categories', { name, sort_order: categories.value.length })
-    closeModal()
-    await loadData()
-  } catch (e) {
-    formError.value = e.response?.data?.detail || '保存分类失败'
-  }
-}
-
-async function saveLink() {
-  if (!linkForm.title.trim() || !linkForm.url.trim() || !linkForm.category_id) {
-    formError.value = '请填写标题、URL 和分类'
-    return
-  }
-  const payload = {
-    title: linkForm.title.trim(),
-    url: linkForm.url.trim(),
-    description: linkForm.description.trim() || null,
-    category_id: linkForm.category_id,
-    is_pinned: linkForm.is_pinned
-  }
-  try {
-    if (modal.editing) {
-      await api.put(`/nav/links/${modal.editing.id}`, payload)
-    } else {
-      await api.post('/nav/links', payload)
-    }
-    closeModal()
-    await loadData()
-  } catch (e) {
-    formError.value = e.response?.data?.detail || '保存链接失败'
-  }
-}
-
-async function deleteEditingLink() {
-  if (!modal.editing) return
-  if (!confirm(`确定删除链接「${modal.editing.title}」？`)) return
-  try {
-    await api.delete(`/nav/links/${modal.editing.id}`)
-    closeModal()
-    await loadData()
-  } catch (e) {
-    formError.value = e.response?.data?.detail || '删除链接失败'
-  }
+  modalMode.value = 'edit'
+  modalEditing.value = link
+  modalOpen.value = true
 }
 
 onMounted(() => {
@@ -242,7 +144,7 @@ onMounted(() => {
                 </svg>
               </span>
             </span>
-            <span class="vc-chip-title" v-html="hl(link.title)"></span>
+            <span class="vc-chip-title" v-html="hlHtml(link.title, keyword, 'hl')"></span>
           </a>
           <button class="tile-action-btn" title="编辑" @click="openEdit(link)">
             <span v-html="ICON_EDIT"></span>
@@ -269,7 +171,7 @@ onMounted(() => {
             <span v-else class="mono">{{ initials(link.title) }}</span>
           </span>
           <a class="vc-tile-main" :href="link.url" target="_blank" rel="noopener">
-            <span class="vc-tile-title" v-html="hl(link.title)"></span>
+            <span class="vc-tile-title" v-html="hlHtml(link.title, keyword, 'hl')"></span>
             <br />
             <span class="vc-tile-domain">{{ domainOf(link.url) }}</span>
           </a>
@@ -281,73 +183,15 @@ onMounted(() => {
       <p v-else class="nav-note">该分类下暂无链接</p>
     </section>
 
-    <div v-if="modal.visible" class="modal-mask" @click.self="closeModal">
-      <div class="modal">
-        <div class="modal-head">
-          <h3>{{ modal.mode === 'add' ? '新增' : '编辑链接' }}</h3>
-        </div>
-        <div v-if="modal.mode === 'add'" class="modal-tabs">
-          <button
-            type="button"
-            class="modal-tab"
-            :class="{ active: modal.tab === 'category' }"
-            @click="modal.tab = 'category'"
-          >
-            新建分类
-          </button>
-          <button
-            type="button"
-            class="modal-tab"
-            :class="{ active: modal.tab === 'link' }"
-            @click="modal.tab = 'link'"
-          >
-            新建链接
-          </button>
-        </div>
-
-        <form @submit.prevent="save">
-          <template v-if="modal.tab === 'category'">
-            <div class="field">
-              <label>分类名称</label>
-              <input v-model="categoryForm.name" type="text" placeholder="例如：图片生成" />
-            </div>
-          </template>
-          <template v-else>
-            <div class="field">
-              <label>标题</label>
-              <input v-model="linkForm.title" type="text" placeholder="链接名称" />
-            </div>
-            <div class="field">
-              <label>URL</label>
-              <input v-model="linkForm.url" type="url" placeholder="https://" />
-            </div>
-            <div class="field">
-              <label>描述（可选）</label>
-              <input v-model="linkForm.description" type="text" />
-            </div>
-            <div class="field">
-              <label>分类</label>
-              <select v-model="linkForm.category_id">
-                <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-              </select>
-            </div>
-            <label class="check-row">
-              <input v-model="linkForm.is_pinned" type="checkbox" /> 置顶
-            </label>
-          </template>
-
-          <p v-if="formError" class="nav-note nav-error">{{ formError }}</p>
-
-          <div class="modal-foot">
-            <button v-if="modal.mode === 'edit'" type="button" class="btn btn-danger" @click="deleteEditingLink">
-              删除
-            </button>
-            <button type="button" class="btn" @click="closeModal">取消</button>
-            <button type="submit" class="btn btn-primary">保存</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <NavModal
+      v-if="modalOpen"
+      :mode="modalMode"
+      :editing="modalEditing"
+      :categories="categories"
+      @close="modalOpen = false"
+      @saved="loadData"
+      @deleted="loadData"
+    />
   </div>
 </template>
 
@@ -664,120 +508,6 @@ button {
 .vc-chip:hover .tile-action-btn,
 .vc-chip:focus-within .tile-action-btn {
   opacity: 1;
-}
-
-.modal-mask {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(43, 38, 34, 0.35);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
-}
-.modal {
-  width: 100%;
-  max-width: 420px;
-  background: var(--card);
-  border: 1px solid var(--hairline);
-  border-radius: 16px;
-  padding: 22px;
-  box-shadow: 0 16px 40px rgba(43, 38, 34, 0.18);
-}
-.modal-head h3 {
-  font-size: 18px;
-  margin-bottom: 14px;
-}
-.modal-tabs {
-  display: flex;
-  gap: 4px;
-  background: var(--paper-soft);
-  border-radius: 10px;
-  padding: 4px;
-  margin-bottom: 16px;
-}
-.modal-tab {
-  flex: 1;
-  padding: 7px 0;
-  border-radius: 8px;
-  font-size: 14px;
-  color: var(--sub);
-  text-align: center;
-}
-.modal-tab.active {
-  background: var(--card);
-  color: var(--teal-dark);
-  font-weight: 600;
-  box-shadow: 0 1px 3px rgba(43, 38, 34, 0.08);
-}
-.field {
-  margin-bottom: 12px;
-}
-.field label {
-  display: block;
-  font-size: 13px;
-  color: var(--sub);
-  margin-bottom: 5px;
-}
-.field input,
-.field select {
-  width: 100%;
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  background: var(--card);
-  padding: 9px 12px;
-  font-size: 14px;
-  color: var(--ink);
-}
-.field input:focus,
-.field select:focus {
-  border-color: var(--teal);
-  outline: none;
-  box-shadow: 0 0 0 3px var(--teal-soft);
-}
-.check-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 14px;
-  color: var(--sub);
-  margin-bottom: 16px;
-}
-.modal-foot {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
-.btn {
-  border: 1px solid var(--hairline);
-  border-radius: 10px;
-  background: var(--card);
-  padding: 8px 16px;
-  font-size: 14px;
-  color: var(--ink);
-}
-.btn:hover {
-  border-color: var(--teal);
-  color: var(--teal);
-}
-.btn-primary {
-  background: var(--teal);
-  border-color: var(--teal);
-  color: #fff;
-}
-.btn-primary:hover {
-  background: var(--teal-dark);
-  color: #fff;
-}
-.btn-danger {
-  border-color: var(--red);
-  color: var(--red);
-  margin-right: auto;
-}
-.btn-danger:hover {
-  background: var(--red-soft);
-  color: var(--red);
 }
 
 .vc-tile-title :deep(mark.hl),

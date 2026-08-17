@@ -20,6 +20,19 @@ export const useDiaryStore = defineStore('diary', {
       } catch (e) {
         this.error = e.response?.data?.detail || '加载日记数据失败'
       }
+    },
+    async saveDiary(payload, id = null) {
+      if (id) return (await api.put(`/diary/${id}`, payload)).data
+      return (await api.post('/diary', payload)).data
+    },
+    async deleteDiary(id) {
+      await api.delete(`/diary/${id}`)
+    },
+    async createFlash(content) {
+      return (await api.post('/flash', { content })).data
+    },
+    async deleteFlash(id) {
+      await api.delete(`/flash/${id}`)
     }
   }
 })
