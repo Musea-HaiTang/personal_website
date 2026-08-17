@@ -262,6 +262,12 @@ personal_website/
 - 业务收益：业务规则（任务-子任务联动、顺延、周导出、笔记改名移文件、题库导入、聚合首页）都收进各自 service 的固定接缝，改一处全局生效；后续新增模块按 service 模式写，不必再复制 router 样板。
 - 验证：全量 pytest 53 项通过；前端零改动，`npm run build` 不受影响。
 
+**架构整理 B：前端视图拆分试点（笔记页，2026-08-17）**
+- 背景：前端页面随功能膨胀（DiaryView 1388 行、PlansView 744 行、NotesView 540 行），弹窗遮罩壳在页面间重复，搜索高亮函数在 NotesView/NavView 各有一份。
+- 改动（试点笔记页）：新增共享组件 `BaseModal`（收编 NotesView 3 处、PlansView 4 处重复的弹窗遮罩壳）；新增 `utils/highlight.js`（转义 + 关键词高亮，替换 NotesView 内实现，NavView 待其页面轮次替换）；笔记页拆成三个子组件（`NoteEditorModal` 信纸编辑、`ImportNotesModal` 导入、`QuizManageModal` 题库管理），NotesView 从 540 行降到 172 行，只留页签/列表/搜索与弹窗编排；数据流保持「视图编排、store 管数据」。
+- 业务收益：改笔记编辑/导入/题库管理任一功能时，定位范围从整页缩到一个独立组件；后续计划/日记/导航页拆分直接复用 BaseModal 与高亮工具。
+- 验证：`vite build` 通过，NotesView 独立 chunk 正常；交互行为保持（弹窗、Ctrl+S、未保存守卫、确认删除均原样保留）。
+
 浏览器批注迭代（2026-08-15）：按 design-mockups 定稿还原日记信纸排版（`.letter` 恢复 flex 纵向布局，正文横线铺满整页信纸）；番茄钟编辑时长输入框去掉默认分钟数占位（编辑时留空等待输入）；修复番茄钟圆环容器 class 与 Tailwind `ring` 工具类撞名导致的蓝色描边方框（改名为 `ring-wrap`）。
 
 **导航页改版（2026-08-16，issue #3）**
