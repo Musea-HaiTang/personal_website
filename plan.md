@@ -292,3 +292,14 @@ personal_website/
 - 实现：纯前端改动——「往日记录」列表行可点击，弹出居中详情卡；底部「删除」（先确认，删日记提示正文文件一并删除）与「关闭」，点遮罩也可关闭；删除复用现有 `DELETE /api/diary/{id}` 与 `DELETE /api/flash/{id}`，成功后列表与页面统计（总篇数/字数/连续记录/热力图等）自动刷新。
 - 验证结果：全量 `pytest` 35 项通过；`npm run build` 通过；手工冒烟点开日记/闪念详情、取消删除、确认删除后列表与统计刷新均正常。
 - 收尾（2026-08-16）：双轴 code-review 通过（Standards 无硬性违规；Spec 逐条核验通过），issue #10 已关闭并推送 main。
+
+**架构整理 C：CSS 三层架构（2026-08-17，方案已确认）**
+- 背景：视图与弹窗自定义 CSS 合计约 2,300 行（DiaryView 536、NavView 347、PomodoroView 325、HomeView 255，弹窗约 890），且出现三套写法并存：Tailwind 令牌类（App/计划/笔记页）、文件内局部 CSS 变量（首页/导航/日记/弹窗共 7 处各声明 10-15 个）、硬编码色值（番茄钟页直接写 `#fffefc`、`#0e7c74` 等）。公共组件样式（`.btn` 12 处、`.tag-chip` 2 处逐字重复、信纸头 `.head` 2 处逐字重复、遮罩 3 处）各自独立，改一处按钮样式要翻十几个文件。
+- 目标架构（三层）：第 0 层令牌——`style.css :root` 一次性定义全部 CSS 变量（与 `tailwind.config.js` 同值，约定同步维护）；第 1 层公共组件类——`@layer components` 定义 `.page` / `.card` `.paper` / `.btn` 系列 / `.tag` `.tag-chip` / `.error` 系列 / `.overlay` 系列 / `.modal` 外壳 / 日记信纸头 `.head`；第 2 层页面与组件专属样式——只在 scoped `<style>` 里保留真正页面独有视觉（信纸、便利贴、热力图、番茄圆环、导航磁贴等）。
+- 实施顺序（每个 commit 均 `npm run build` 验证、零视觉变化）：
+  1. 地基：`style.css` 建 `:root` 令牌 + `@layer components` 公共类，删除 7 个文件的局部变量声明；
+  2. 逐页瘦身：HomeView → DiaryView → NavView → PomodoroView（顺带 PlansView 硬编码色值换变量），删公共类副本、保留页面专属样式；
+  3. 弹窗瘦身：DetailModal / HistoryModal / DiaryEditorModal / NavModal / FloatingTimer / NoteEditorModal，同法处理；
+  4. 收尾：清理死类，plan.md 同步。
+- 已知残留（本次不处理）：笔记页 `.letter` 与日记信纸 `.letter` 视觉不同，保持各自 scoped；`.page-head`、`.search`、`.icon-btn` 等各页尺寸/结构有差异，暂不强行合并；`--green` 系深浅色（如 `#c9e2d5`、`#5d8f76`）仅个别组件使用，保持局部。
+- 业务收益：主题和按钮/标签/卡片/遮罩只维护一处，改样式不再翻十几个文件；新增页面大部分直接复用公共类，自带一致的纸感风格；页面专属视觉仍保留在各自 scoped 样式里，不影响定制空间。

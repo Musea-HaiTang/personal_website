@@ -30,19 +30,6 @@ function plainText(s) {
 
 <style scoped>
 .detail-overlay {
-  --hairline: #e9e3d9;
-  --card: #fffefc;
-  --paper-soft: #f4f1ea;
-  --sub: #7c7468;
-  --ink: #2b2622;
-  --teal: #0e7c74;
-  --teal-soft: #e7f1ef;
-  --amber: #b7791f;
-  --amber-soft: #faf1dd;
-  --amber-line: #e8d6a8;
-  --red: #c4533a;
-  --red-soft: #f9ebe5;
-  --kai: "KaiTi", "STKaiti", "Kaiti SC", "楷体", serif;
   position: fixed;
   inset: 0;
   background: rgba(43, 38, 34, 0.45);

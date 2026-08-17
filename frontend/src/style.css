@@ -2,6 +2,197 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- 第 0 层：主题令牌（与 tailwind.config.js 同步维护） ---------- */
+:root {
+  --paper: #f7f5f1;
+  --paper-soft: #f4f1ea;
+  --card: #fffefc;
+  --hairline: #e9e3d9;
+  --ink: #2b2622;
+  --sub: #7c7468;
+  --teal: #0e7c74;
+  --teal-dark: #0a6a63;
+  --teal-soft: #e7f1ef;
+  --amber: #b7791f;
+  --amber-soft: #faf1dd;
+  --amber-line: #e8d6a8;
+  --red: #c4533a;
+  --red-soft: #f9ebe5;
+  --green: #3d9970;
+  --green-soft: #e7f1ec;
+  --serif: 'Songti SC', 'STSong', SimSun, serif;
+  --kai: 'KaiTi', 'STKaiti', 'Kaiti SC', '楷体', serif;
+  --sans: 'PingFang SC', 'Microsoft YaHei', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ---------- 第 1 层：公共组件类（跨页面/组件共享） ---------- */
+@layer components {
+  /* 页面骨架 */
+  .page {
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 40px 28px 90px;
+  }
+
+  /* 纸感卡片：聚合首页用 .card，日记信纸外层用 .paper */
+  .card,
+  .paper {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(43, 38, 34, 0.05);
+  }
+
+  /* 按钮 */
+  .btn {
+    border: 1px solid var(--hairline);
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .btn.danger,
+  .btn-danger {
+    color: var(--red);
+    border-color: var(--red);
+  }
+  .btn-danger:hover {
+    background: var(--red-soft);
+    color: var(--red);
+  }
+  .btn-primary,
+  .btn-teal {
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #fff;
+  }
+  .btn-primary:hover,
+  .btn-teal:hover {
+    background: var(--teal-dark);
+    border-color: var(--teal-dark);
+    color: #fff;
+  }
+  .btn-primary:disabled,
+  .btn-teal:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  /* 标签 */
+  .tag {
+    background: var(--paper-soft);
+    color: var(--sub);
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 12px;
+  }
+  .tag-sm {
+    flex-shrink: 0;
+    background: var(--paper-soft);
+    color: var(--sub);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+  }
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: var(--teal-soft);
+    color: var(--teal);
+    border: 1px solid var(--teal);
+    border-radius: 999px;
+    padding: 2px 9px;
+    font-size: 13px;
+  }
+  .tag-chip button {
+    background: none;
+    border: none;
+    color: var(--teal);
+    font-size: 12px;
+    padding: 0 0 0 2px;
+    cursor: pointer;
+  }
+
+  /* 错误提示（历史命名并存，新代码统一用 .error） */
+  .error,
+  .note-error,
+  .nav-error {
+    color: var(--red);
+    background: var(--red-soft);
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+
+  /* 弹窗遮罩（历史命名并存，新代码统一用 .overlay） */
+  .overlay,
+  .detail-overlay,
+  .edit-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(43, 38, 34, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+    padding: 24px;
+  }
+
+  /* 弹窗外壳基础（尺寸/阴影由各弹窗局部补充） */
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--hairline);
+    border-radius: 16px;
+  }
+
+  /* 日记信纸头（标题/日期 + 底部细线 + 「记」印章） */
+  .head {
+    position: relative;
+    padding: 16px 24px 12px;
+  }
+  .head::before {
+    content: '';
+    position: absolute;
+    left: 24px;
+    right: 24px;
+    bottom: 0;
+    height: 1px;
+    background: #e8e2d4;
+  }
+  .head::after {
+    content: '记';
+    position: absolute;
+    top: 12px;
+    right: 20px;
+    width: 26px;
+    height: 26px;
+    background: var(--teal);
+    color: #fff;
+    font-family: var(--serif);
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transform: rotate(-4deg);
+    box-shadow: 0 1px 2px rgba(43, 38, 34, 0.18);
+    line-height: 1;
+  }
+}
+
 body {
   @apply bg-paper text-ink antialiased;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
 }

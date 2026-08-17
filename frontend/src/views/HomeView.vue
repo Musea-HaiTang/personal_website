@@ -140,16 +140,6 @@ onMounted(load)
 
 <style scoped>
 .page {
-  --paper: #f7f5f1;
-  --paper-soft: #f4f1ea;
-  --card: #fffefc;
-  --hairline: #e9e3d9;
-  --ink: #2b2622;
-  --sub: #7c7468;
-  --teal: #0e7c74;
-  --teal-dark: #0a6a63;
-  --teal-soft: #e7f1ef;
-  --serif: 'Songti SC', 'STSong', SimSun, serif;
   max-width: 1120px;
   margin: 0 auto;
   padding: 40px 28px 90px;
