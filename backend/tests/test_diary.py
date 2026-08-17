@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from app.database import SessionLocal
 from app.main import app
 from app.models.diary import DiaryEntry
-from app.services.diary_files import delete_file
+from app.services.markdown_store import diary_store
 
 
 @pytest.fixture()
@@ -17,7 +17,7 @@ def client():
     with SessionLocal() as db:
         entries = db.scalars(select(DiaryEntry)).all()
         for entry in entries:
-            delete_file(entry.date)
+            diary_store.delete(diary_store.path_for(str(entry.date)))
         db.execute(delete(DiaryEntry))
         db.commit()
 
@@ -36,10 +36,9 @@ def test_diary_save_creates_markdown_file(client):
     assert entry["title"] == "第一篇"
     assert entry["tags"] == ["生活"]
 
-    from app.services.diary_files import file_path_for
     day = datetime.date.fromisoformat("2026-08-14")
-    assert file_path_for(day).exists()
-    assert file_path_for(day).read_text(encoding="utf-8") == "# 你好"
+    assert diary_store.path_for(str(day)).exists()
+    assert diary_store.path_for(str(day)).read_text(encoding="utf-8") == "# 你好"
 
 
 def test_diary_load_and_edit(client):
@@ -78,9 +77,8 @@ def test_diary_delete(client):
     resp = client.delete(f"/api/diary/{entry['id']}")
     assert resp.status_code == 204
 
-    from app.services.diary_files import file_path_for
     day = datetime.date.fromisoformat("2026-08-14")
-    assert not file_path_for(day).exists()
+    assert not diary_store.path_for(str(day)).exists()
     assert client.get("/api/diary").json() == []
 
 

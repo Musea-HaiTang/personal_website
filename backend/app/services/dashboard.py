@@ -12,7 +12,7 @@ from app.schemas.dashboard import DashboardOut, PomodoroSummary
 from app.schemas.diary import DiaryOut
 from app.schemas.nav import NavLinkOut
 from app.services import tags
-from app.services.diary_files import read_content
+from app.services.markdown_store import diary_store
 from app.services.tasks import task_to_out
 
 
@@ -39,7 +39,7 @@ def get_dashboard(db: Session) -> DashboardOut:
             date=entry.date,
             title=entry.title,
             tags=tags.to_list(entry.tags),
-            content=read_content(entry.date),
+            content=diary_store.read(diary_store.path_for(str(entry.date))),
             updated_at=entry.updated_at,
         )
         for entry in entries

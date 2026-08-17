@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.models.notes import Note
 from app.schemas.notes import FolderOut, ImportResult, NoteCreate, NoteOut, NoteUpdate
-from app.services import tags
-from app.services.note_files import delete_file, file_path_for, read_content, unique_path, write_content
+from app.services import search, tags
+from app.services.markdown_store import notes_store
 
 
 def note_or_404(db: Session, note_id: int) -> Note:
@@ -23,7 +23,7 @@ def note_to_out(note: Note) -> NoteOut:
         folder=note.folder,
         title=note.title,
         tags=tags.to_list(note.tags),
-        content=read_content(Path(note.file_path)),
+        content=notes_store.read(Path(note.file_path)),
         updated_at=note.updated_at,
     )
 
@@ -35,14 +35,11 @@ def list_notes(db: Session, folder: str | None, q: str | None) -> list[NoteOut]:
     notes = db.scalars(stmt).all()
 
     results = []
-    keyword = (q or "").strip().lower()
     for note in notes:
-        content = read_content(Path(note.file_path))
-        if keyword:
-            tags_text = " ".join(tags.to_list(note.tags))
-            hay = f"{note.title} {tags_text} {content}".lower()
-            if keyword not in hay:
-                continue
+        content = notes_store.read(Path(note.file_path))
+        tags_text = " ".join(tags.to_list(note.tags))
+        if not search.matches([note.title, tags_text, content], q):
+            continue
         results.append(note_to_out(note))
     return results
 
@@ -64,7 +61,7 @@ def create_note(db: Session, payload: NoteCreate) -> NoteOut:
     title = payload.title.strip()
     if db.scalar(select(Note).where(Note.folder == folder, Note.title == title)):
         raise HTTPException(status_code=409, detail="同文件夹已有同名笔记，请改名或换文件夹")
-    path = write_content(file_path_for(folder, title), payload.content)
+    path = notes_store.write(notes_store.path_for(folder, title), payload.content)
     note = Note(folder=folder, title=title, tags=tags.to_str(payload.tags), file_path=str(path))
     db.add(note)
     db.commit()
@@ -87,11 +84,11 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
             errors.append(f"{upload.filename}: 编码不是 UTF-8，请转码后重新导入")
             continue
         title = Path(upload.filename or "未命名").stem.strip() or "未命名"
-        path = unique_path(target, title)
+        path = notes_store.unique_path(target, title)
         final_title = path.stem
         if final_title != title:
             renamed.append(final_title)
-        write_content(path, content)
+        notes_store.write(path, content)
         note = Note(folder=target, title=final_title, file_path=str(path))
         db.add(note)
         db.commit()
@@ -116,7 +113,7 @@ def update_note(db: Session, note_id: int, payload: NoteUpdate) -> NoteOut:
 
     new_folder = data.get("folder", note.folder).strip() or "未分类"
     new_title = data.get("title", note.title).strip()
-    new_path = file_path_for(new_folder, new_title)
+    new_path = notes_store.path_for(new_folder, new_title)
 
     if "title" in data or "folder" in data:
         if (new_folder, new_title) != (note.folder, note.title):
@@ -132,7 +129,7 @@ def update_note(db: Session, note_id: int, payload: NoteUpdate) -> NoteOut:
             note.file_path = str(new_path)
 
     if "content" in data and data["content"] is not None:
-        write_content(Path(note.file_path), data["content"])
+        notes_store.write(Path(note.file_path), data["content"])
 
     if "title" in data:
         note.title = new_title
@@ -147,6 +144,6 @@ def update_note(db: Session, note_id: int, payload: NoteUpdate) -> NoteOut:
 
 def delete_note(db: Session, note_id: int) -> None:
     note = note_or_404(db, note_id)
-    delete_file(Path(note.file_path))
+    notes_store.delete(Path(note.file_path))
     db.delete(note)
     db.commit()

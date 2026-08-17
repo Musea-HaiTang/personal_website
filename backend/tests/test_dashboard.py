@@ -10,7 +10,7 @@ from app.models.diary import DiaryEntry
 from app.models.nav import NavCategory, NavLink
 from app.models.pomodoro import PomodoroSession
 from app.models.tasks import Subtask, Task, WeeklyPlan
-from app.services.diary_files import delete_file
+from app.services.markdown_store import diary_store
 
 
 @pytest.fixture()
@@ -19,7 +19,7 @@ def client():
         yield test_client
     with SessionLocal() as db:
         for entry in db.scalars(select(DiaryEntry)).all():
-            delete_file(entry.date)
+            diary_store.delete(diary_store.path_for(str(entry.date)))
         db.execute(delete(DiaryEntry))
         db.execute(delete(NavLink))
         db.execute(delete(NavCategory))

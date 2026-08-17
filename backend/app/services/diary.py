@@ -1,4 +1,5 @@
 from datetime import date
+from pathlib import Path
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -6,8 +7,12 @@ from sqlalchemy.orm import Session
 
 from app.models.diary import DiaryEntry
 from app.schemas.diary import DiaryCreate, DiaryOut, DiaryUpdate
-from app.services import tags
-from app.services.diary_files import delete_file, read_content, write_content
+from app.services import search, tags
+from app.services.markdown_store import diary_store
+
+
+def _diary_path(day: date) -> Path:
+    return diary_store.path_for(str(day))
 
 
 def entry_or_404(db: Session, entry_id: int) -> DiaryEntry:
@@ -23,7 +28,7 @@ def entry_to_out(entry: DiaryEntry) -> DiaryOut:
         date=entry.date,
         title=entry.title,
         tags=tags.to_list(entry.tags),
-        content=read_content(entry.date),
+        content=diary_store.read(_diary_path(entry.date)),
         updated_at=entry.updated_at,
     )
 
@@ -40,14 +45,11 @@ def list_entries(
     if tag:
         stmt = stmt.where(DiaryEntry.tags.contains(tag))
     entries = db.scalars(stmt).all()
-
-    results = []
-    keyword = (q or "").strip().lower()
-    for entry in entries:
-        if keyword and keyword not in entry.title.lower() and keyword not in read_content(entry.date).lower():
-            continue
-        results.append(entry_to_out(entry))
-    return results
+    return [
+        entry_to_out(entry)
+        for entry in entries
+        if search.matches([entry.title, diary_store.read(_diary_path(entry.date))], q)
+    ]
 
 
 def get_entry(db: Session, entry_id: int) -> DiaryOut:
@@ -58,7 +60,7 @@ def create_entry(db: Session, payload: DiaryCreate) -> DiaryOut:
     existing = db.scalar(select(DiaryEntry).where(DiaryEntry.date == payload.date))
     if existing is not None:
         raise HTTPException(status_code=409, detail="该日期已有日记，请直接编辑")
-    path = write_content(payload.date, payload.content)
+    path = diary_store.write(_diary_path(payload.date), payload.content)
     entry = DiaryEntry(
         date=payload.date,
         title=payload.title,
@@ -77,7 +79,7 @@ def update_entry(db: Session, entry_id: int, payload: DiaryUpdate) -> DiaryOut:
     if "tags" in data and data["tags"] is not None:
         data["tags"] = tags.to_str(data["tags"])
     if "content" in data and data["content"] is not None:
-        write_content(entry.date, data["content"])
+        diary_store.write(_diary_path(entry.date), data["content"])
     for key, value in data.items():
         setattr(entry, key, value)
     db.commit()
@@ -87,6 +89,6 @@ def update_entry(db: Session, entry_id: int, payload: DiaryUpdate) -> DiaryOut:
 
 def delete_entry(db: Session, entry_id: int) -> None:
     entry = entry_or_404(db, entry_id)
-    delete_file(entry.date)
+    diary_store.delete(_diary_path(entry.date))
     db.delete(entry)
     db.commit()

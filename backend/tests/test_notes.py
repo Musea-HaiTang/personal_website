@@ -7,7 +7,7 @@ from sqlalchemy import delete, select
 from app.database import SessionLocal
 from app.main import app
 from app.models.notes import Note
-from app.services.note_files import NOTES_DIR
+from app.services.markdown_store import notes_store
 
 
 @pytest.fixture()
@@ -36,7 +36,7 @@ def test_note_create_writes_markdown_file(client):
     assert note["folder"] == "Python 笔记"
     assert note["tags"] == ["基础"]
 
-    path = NOTES_DIR / "Python 笔记" / "装饰器原理.md"
+    path = notes_store.root / "Python 笔记" / "装饰器原理.md"
     assert path.exists()
     assert path.read_text(encoding="utf-8") == "# 装饰器\n\n本质是返回新函数。"
 
@@ -107,8 +107,8 @@ def test_note_update_moves_file_and_updates_content(client):
     assert data["tags"] == ["进阶"]
     assert data["content"] == "新内容"
 
-    old_path = NOTES_DIR / "Python 笔记" / "旧标题.md"
-    new_path = NOTES_DIR / "Vue3 笔记" / "新标题.md"
+    old_path = notes_store.root / "Python 笔记" / "旧标题.md"
+    new_path = notes_store.root / "Vue3 笔记" / "新标题.md"
     assert not old_path.exists()
     assert new_path.exists()
     assert new_path.read_text(encoding="utf-8") == "新内容"
@@ -117,7 +117,7 @@ def test_note_update_moves_file_and_updates_content(client):
 def test_note_delete_removes_file(client):
     note = _create(client).json()
     assert client.delete(f"/api/notes/{note['id']}").status_code == 204
-    assert not (NOTES_DIR / "Python 笔记" / "装饰器原理.md").exists()
+    assert not (notes_store.root / "Python 笔记" / "装饰器原理.md").exists()
     assert client.get("/api/notes").json() == []
 
 
