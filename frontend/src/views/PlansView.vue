@@ -569,10 +569,10 @@ onMounted(async () => {
   bottom: 4px;
   right: 6px;
   width: 1px;
-  background: #e9e3d9;
+  background: var(--hairline);
 }
 .resize-handle:hover::after {
-  background: #0e7c74;
+  background: var(--teal);
 }
 .check-circle {
   width: 20px;
@@ -587,8 +587,8 @@ onMounted(async () => {
   background: transparent;
 }
 .check-circle.on {
-  background: #3d9970;
-  border-color: #3d9970;
+  background: var(--green);
+  border-color: var(--green);
 }
 .check-circle.on::after {
   content: '✓';

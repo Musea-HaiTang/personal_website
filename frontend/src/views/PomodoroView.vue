@@ -205,28 +205,28 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 
 <style scoped>
 .today-stats {
-  background: #fffefc;
-  border: 1px solid #e9e3d9;
+  background: var(--card);
+  border: 1px solid var(--hairline);
   border-radius: 12px;
   padding: 10px 16px;
   font-size: 14px;
-  color: #7c7468;
+  color: var(--sub);
   cursor: pointer;
   font-family: inherit;
   text-align: left;
   transition: 0.15s;
 }
 .today-stats:hover {
-  border-color: #0e7c74;
+  border-color: var(--teal);
   box-shadow: 0 4px 14px rgba(14, 124, 116, 0.1);
 }
 .today-stats b {
-  color: #0e7c74;
+  color: var(--teal);
   font-size: 18px;
 }
 .caret {
   font-size: 11px;
-  color: #7c7468;
+  color: var(--sub);
   margin-left: 2px;
 }
 .popover {
@@ -235,8 +235,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   top: calc(100% + 8px);
   width: 320px;
   max-width: 86vw;
-  background: #fffefc;
-  border: 1px solid #e9e3d9;
+  background: var(--card);
+  border: 1px solid var(--hairline);
   border-radius: 14px;
   box-shadow: 0 14px 36px rgba(43, 38, 34, 0.16);
   padding: 12px 14px;
@@ -250,18 +250,18 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 }
 .pop-close {
   border: 0;
-  background: #f4f1ea;
+  background: var(--paper-soft);
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  color: #7c7468;
+  color: var(--sub);
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
 }
 .pop-close:hover {
-  background: #e9e3d9;
-  color: #2b2622;
+  background: var(--hairline);
+  color: var(--ink);
 }
 .logs {
   display: flex;
@@ -276,26 +276,26 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   gap: 10px;
   font-size: 14px;
   padding: 8px 10px;
-  border: 1px dashed #e9e3d9;
+  border: 1px dashed var(--hairline);
   border-radius: 10px;
 }
 .logt {
   font-family: ui-monospace, Consolas, monospace;
   font-size: 12px;
-  color: #7c7468;
+  color: var(--sub);
 }
 .logdot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #c4533a;
+  background: var(--red);
   flex: none;
 }
 .logl {
-  color: #2b2622;
+  color: var(--ink);
 }
 .logtask {
-  color: #0e7c74;
+  color: var(--teal);
   font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -303,14 +303,14 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 }
 .empty-tip {
   font-size: 13px;
-  color: #7c7468;
+  color: var(--sub);
   padding: 8px 4px;
 }
 .ring-card {
   max-width: 560px;
   margin: 0 auto;
-  background: #fffefc;
-  border: 1px solid #e9e3d9;
+  background: var(--card);
+  border: 1px solid var(--hairline);
   border-radius: 18px;
   box-shadow: 0 6px 24px rgba(43, 38, 34, 0.06);
   text-align: center;
@@ -320,8 +320,8 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   display: flex;
   justify-content: center;
   gap: 4px;
-  background: #f4f1ea;
-  border: 1px solid #e9e3d9;
+  background: var(--paper-soft);
+  border: 1px solid var(--hairline);
   border-radius: 999px;
   padding: 4px;
   margin: 0 auto 10px;
@@ -333,19 +333,19 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   padding: 7px 18px;
   border-radius: 999px;
   font-size: 14px;
-  color: #7c7468;
+  color: var(--sub);
   cursor: pointer;
   transition: 0.2s;
 }
 .modebtn:hover {
-  color: #2b2622;
+  color: var(--ink);
 }
 .modebtn.active.focus {
-  background: #0e7c74;
+  background: var(--teal);
   color: #fff;
 }
 .modebtn.active.break {
-  background: #3d9970;
+  background: var(--green);
   color: #fff;
 }
 .ring-wrap {
@@ -361,12 +361,12 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 }
 .ring-bg {
   fill: none;
-  stroke: #e9e3d9;
+  stroke: var(--hairline);
   stroke-width: 14;
 }
 .ring-prog {
   fill: none;
-  stroke: #0e7c74;
+  stroke: var(--teal);
   stroke-width: 14;
   stroke-linecap: round;
   transform: rotate(-90deg);
@@ -394,7 +394,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   cursor: text;
 }
 .t-time {
-  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-family: var(--serif);
   font-size: 58px;
   font-weight: 700;
   letter-spacing: 0.02em;
@@ -402,10 +402,10 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   transition: color 0.4s;
 }
 .t-time.focus {
-  color: #0e7c74;
+  color: var(--teal);
 }
 .t-time.break {
-  color: #3d9970;
+  color: var(--green);
 }
 .edit-hint {
   position: absolute;
@@ -413,7 +413,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   top: 50%;
   transform: translateY(-50%);
   font-size: 15px;
-  color: #7c7468;
+  color: var(--sub);
   opacity: 0;
   transition: opacity 0.2s;
   pointer-events: none;
@@ -423,26 +423,26 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   opacity: 1;
 }
 .t-edit {
-  font-family: "Songti SC", "STSong", "SimSun", serif;
+  font-family: var(--serif);
   font-size: 52px;
   font-weight: 700;
   text-align: center;
   width: 3ch;
   border: 0;
-  border-bottom: 2px dashed #0e7c74;
+  border-bottom: 2px dashed var(--teal);
   background: transparent;
   outline: none;
-  caret-color: #0e7c74;
-  color: #2b2622;
+  caret-color: var(--teal);
+  color: var(--ink);
   padding: 0 2px;
   line-height: 1.05;
 }
 .t-edit::selection {
-  background: #e7f1ef;
+  background: var(--teal-soft);
 }
 .t-unit {
   font-size: 14px;
-  color: #7c7468;
+  color: var(--sub);
   margin-left: 2px;
 }
 .controls {
@@ -467,31 +467,31 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   height: 22px;
 }
 .icon-btn.primary {
-  background: #0e7c74;
+  background: var(--teal);
   color: #fff;
 }
 .icon-btn.primary:hover {
-  background: #0a6a63;
+  background: var(--teal-dark);
 }
 .icon-btn.primary.playing {
-  background: #b7791f;
+  background: var(--amber);
 }
 .icon-btn.ghost {
-  border-color: #e9e3d9;
-  color: #7c7468;
-  background: #fffefc;
+  border-color: var(--hairline);
+  color: var(--sub);
+  background: var(--card);
 }
 .icon-btn.ghost:hover {
-  background: #f4f1ea;
+  background: var(--paper-soft);
 }
 .icon-btn.disabled {
   opacity: 0.45;
   cursor: not-allowed;
   pointer-events: none;
-  background: #f4f1ea;
-  border-color: #e9e3d9;
+  background: var(--paper-soft);
+  border-color: var(--hairline);
   border-style: dashed;
-  color: #7c7468;
+  color: var(--sub);
 }
 .taskbind {
   display: flex;
@@ -500,7 +500,7 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
   gap: 10px;
   margin-top: 18px;
   font-size: 14px;
-  color: #7c7468;
+  color: var(--sub);
   transition: opacity 0.2s;
 }
 .taskbind.off {
@@ -511,18 +511,18 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocClick))
 }
 .taskbind select {
   max-width: 260px;
-  background: #fffefc;
-  border: 1px solid #e9e3d9;
+  background: var(--card);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 7px 10px;
   font-size: 14px;
-  color: #2b2622;
+  color: var(--ink);
   font-family: inherit;
   outline: none;
   cursor: pointer;
 }
 .taskbind select:focus {
-  border-color: #0e7c74;
+  border-color: var(--teal);
 }
 .taskbind select:disabled {
   cursor: not-allowed;
