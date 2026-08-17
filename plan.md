@@ -256,6 +256,12 @@ personal_website/
 - #13 题库管理与 YAML 批量导入（已实现并通过双轴 review）：后端 `questions` 表（含 `accept` 可接受答案）、CRUD、YAML 文件级分类导入（解析→校验→预览→确认）、`quiz-template.yaml` 下载、SQLite 轻量迁移；前端「题库管理」弹窗（格式说明/导入/下载）。修复：accept 存储、YAML `no` 键布尔陷阱（模板键加引号）、null 防御。
 - 当前 frontier：#14 分块与向量索引 → #15 RAG 问答；#16 答题判分 → #17 统计与整体验收。
 
+**架构整理 A：后端业务下沉与样板去重（2026-08-17）**
+- 背景：项目随 P1 学习模块扩展后，8 个 router 出现 CRUD 样板重复（404 查询、字段转换、add/commit/refresh），tags 序列化在 diary/notes/dashboard 三处逐字重复，任务联动/周导出/聚合等真实业务规则直接写在 HTTP 层。
+- 改动：新增 6 个 service（`services/tags.py` 共享标签序列化；`services/tasks.py`、`services/diary.py`、`services/notes.py`、`services/quiz.py`、`services/dashboard.py` 承接各模块业务规则），router 只保留 HTTP 参数与响应模型；dashboard 复用 `tasks.task_to_out`，消除任务字段转换与标签转换的重复实现。
+- 业务收益：业务规则（任务-子任务联动、顺延、周导出、笔记改名移文件、题库导入、聚合首页）都收进各自 service 的固定接缝，改一处全局生效；后续新增模块按 service 模式写，不必再复制 router 样板。
+- 验证：全量 pytest 53 项通过；前端零改动，`npm run build` 不受影响。
+
 浏览器批注迭代（2026-08-15）：按 design-mockups 定稿还原日记信纸排版（`.letter` 恢复 flex 纵向布局，正文横线铺满整页信纸）；番茄钟编辑时长输入框去掉默认分钟数占位（编辑时留空等待输入）；修复番茄钟圆环容器 class 与 Tailwind `ring` 工具类撞名导致的蓝色描边方框（改名为 `ring-wrap`）。
 
 **导航页改版（2026-08-16，issue #3）**
