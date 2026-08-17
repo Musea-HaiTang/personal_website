@@ -230,7 +230,7 @@ personal_website/
 
 ## 5. 后续阶段展望
 
-- P1：学习笔记导入与全文检索、基于 DeepSeek 的笔记问答和技术答题判分。
+- P1（进行中，2026-08-17 起）：学习笔记导入与全文检索、基于 GLM/embedding-3 的笔记问答和技术答题判分。
 - P2：网页版桌宠（纯前端）。
 - P3：爬虫与小说阅读，只处理用户自有或已授权内容，遵守 robots 和限速。
 - 公网阶段：Docker、nginx、HTTPS、单密码或完整账号体系，开启 `AUTH_ENABLED`。
@@ -248,6 +248,13 @@ personal_website/
 标准流程、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)。以下为仓库进度与迭代记录。
 
 当前进度（2026-08-16）：#2 项目骨架、#3 导航模块（含书签墙视觉改版 + favicon 后端缓存 + 日记/导航 Pinia 缓存）、#4 计划任务模块、#5 日记模块（含「便利贴闪念 + 信纸日记 + 图表」改版）、#6 番茄钟（含视觉改版 + 全局小窗计时 + 绑定任务）、#7 聚合首页（/api/dashboard + 首页四块数据）、#8 番茄绑定任务与整体验收均已确认关闭并推送 main；P0 交付完成，frontier 清空。
+
+**P1 学习模块（2026-08-17，SPEC #11 / 票 #12–#17）**
+- 定稿：UI 原型（`design-mockups/learn/`）——侧边栏单个「笔记」入口，页内「学习笔记 / 问答 / 答题」三页签；笔记页卡片 + 信纸弹窗直接编辑；问答按「项目 / 最近」分组；答题为选择题/填空题 + YAML 文件级分类题库。
+- 模型：`zai-sdk`，`embedding-3` 向量 + `glm-4.7-flash` 问答（`ZHIPU_API_KEY` 在 backend/.env，不入库）。
+- #12 笔记模块（已实现并通过双轴 review）：后端 `notes` 表 + Markdown 落盘 `backend/data/notes/<文件夹>/<标题>.md`（同名自动改名、UTF-8 乱码提示）、粘贴新建/批量上传/文件夹导入、文件夹与标签管理、关键词检索、直接编辑（Ctrl+S、未保存提示、删除同步删文件）；前端 `/notes` 路由 + 侧边栏入口 + 三页签 + 卡片/信纸编辑 + 搜索高亮 + 导入弹窗。验证：pytest 53 项全量通过；`npm run build` 通过；双轴 review 通过（修复 readerNote 崩溃、搜索高亮、死代码等）。
+- #13 题库管理与 YAML 批量导入（已实现并通过双轴 review）：后端 `questions` 表（含 `accept` 可接受答案）、CRUD、YAML 文件级分类导入（解析→校验→预览→确认）、`quiz-template.yaml` 下载、SQLite 轻量迁移；前端「题库管理」弹窗（格式说明/导入/下载）。修复：accept 存储、YAML `no` 键布尔陷阱（模板键加引号）、null 防御。
+- 当前 frontier：#14 分块与向量索引 → #15 RAG 问答；#16 答题判分 → #17 统计与整体验收。
 
 浏览器批注迭代（2026-08-15）：按 design-mockups 定稿还原日记信纸排版（`.letter` 恢复 flex 纵向布局，正文横线铺满整页信纸）；番茄钟编辑时长输入框去掉默认分钟数占位（编辑时留空等待输入）；修复番茄钟圆环容器 class 与 Tailwind `ring` 工具类撞名导致的蓝色描边方框（改名为 `ring-wrap`）。
 
