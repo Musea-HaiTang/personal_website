@@ -3,7 +3,9 @@
 from app.models.diary import DiaryEntry
 from app.models.flash import FlashNote
 from app.models.nav import NavCategory, NavLink
+from app.models.notes import Note
 from app.models.pomodoro import PomodoroSession
+from app.models.quiz import Question
 from app.models.tasks import Subtask, Task, WeeklyPlan
 
-__all__ = ["DiaryEntry", "FlashNote", "NavCategory", "NavLink", "PomodoroSession", "Subtask", "Task", "WeeklyPlan"]
+__all__ = ["DiaryEntry", "FlashNote", "NavCategory", "NavLink", "Note", "PomodoroSession", "Question", "Subtask", "Task", "WeeklyPlan"]

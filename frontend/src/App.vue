@@ -10,6 +10,7 @@ const navItems = [
   { path: '/plans', label: '计划' },
   { path: '/diary', label: '日记' },
   { path: '/pomodoro', label: '番茄钟' },
+  { path: '/notes', label: '笔记' },
   { path: '/nav', label: '导航' }
 ]
 </script>

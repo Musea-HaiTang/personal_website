@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.routers import dashboard, diary, flash, nav, pomodoro, tasks
+from app.routers import dashboard, diary, flash, nav, notes, pomodoro, quiz, tasks
 
 
 @asynccontextmanager
@@ -28,7 +28,9 @@ app.include_router(diary.router)
 app.include_router(dashboard.router)
 app.include_router(flash.router)
 app.include_router(nav.router)
+app.include_router(notes.router)
 app.include_router(pomodoro.router)
+app.include_router(quiz.router)
 app.include_router(tasks.router)
 
 
