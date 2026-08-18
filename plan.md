@@ -1,18 +1,18 @@
 # 个人网站开发计划
 
 > 单用户个人网站，Vue 3 + FastAPI，本机免登录一键启动（`start.bat`）。
-> 当前状态：**P0 五个核心模块已完成并通过验收（2026-08-16）**；**P1 学习模块开发中（2026-08-17 起）**。
+> 当前状态：**P0 五个核心模块已完成并通过验收（2026-08-16）**；**P1 学习模块已精简为笔记导入 + 只读 Markdown 阅读（2026-08-18）**。
 
 ## 1. 项目概述
 
-一个日常自用的个人网站：任务计划、日记闪念、番茄专注、书签导航、学习笔记与答题。结构化数据存 SQLite，日记/笔记正文落盘为 Markdown 文件；架构为后续桌宠、爬虫、小说阅读和公网登录预留扩展点。
+一个日常自用的个人网站：任务计划、日记闪念、番茄专注、书签导航、笔记导入与阅读。结构化数据存 SQLite，日记/笔记正文落盘为 Markdown 文件；架构为后续桌宠、爬虫、小说阅读和公网登录预留扩展点。
 
 ## 2. 技术栈
 
 - 前端：Vue 3.5 + Vite + Tailwind + Pinia + Vue Router + Axios，Markdown 预览用 markdown-it。
 - 后端：FastAPI + SQLAlchemy 2.0 + SQLite + Pydantic v2。
 - 测试：pytest + TestClient，只测 HTTP API 外部行为。
-- P1 模型：`zai-sdk`，`embedding-3` 向量 + `glm-4.7-flash` 问答（`ZHIPU_API_KEY` 在 backend/.env，不入库）。
+- Markdown 阅读：前端用 `markdown-it` 做只读渲染，不引入编辑器内核。
 
 ## 3. 架构设计
 
@@ -27,10 +27,10 @@ personal_website/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py / config.py / database.py
-│   │   ├── models/                # tasks / diary / flash / notes / quiz / nav / pomodoro
+│   │   ├── models/                # tasks / diary / flash / notes / nav / pomodoro
 │   │   ├── schemas/               # Pydantic 请求/响应模型
 │   │   ├── routers/               # HTTP 层：参数与响应模型
-│   │   └── services/              # 业务规则 / 文件仓库 / 搜索（tasks/diary/notes/quiz/favicon/tags/markdown_store/search/dashboard）
+│   │   └── services/              # 业务规则 / 文件仓库 / 搜索（tasks/diary/notes/favicon/tags/markdown_store/search/dashboard）
 │   ├── tests/                     # pytest，独立 SQLite
 │   ├── data/                      # SQLite + 日记/笔记 Markdown + favicon 缓存
 │   └── requirements.txt
@@ -52,13 +52,11 @@ personal_website/
 | `diary_entries` | 日记元数据 | 日期（唯一）、标题、标签、正文文件路径 |
 | `flash_notes` | 闪念 | 内容、创建时间（按日聚合） |
 | `notes` | 学习笔记 | 文件夹、标题、标签、文件路径、更新时间 |
-| `note_chunks` | 笔记分块与向量 | 所属笔记、标题、块顺序、正文块、embedding 向量 |
-| `note_index_jobs` | 笔记索引状态 | 所属笔记、状态、重试次数、错误 |
-| `questions` | 题库 | 分类、题号、题型（choice/fill）、题目、选项、答案/可接受答案、代码、解析、分值 |
+| `note_folders` | 笔记分类 | 分类名、创建时间；允许先建空分类再导入 |
 | `pomodoro_sessions` | 番茄记录 | 开始/结束时间、专注时长、可选绑定任务 |
 | `nav_categories` / `nav_links` | 导航 | 名称、URL、描述、分类、置顶、排序 |
 
-所有表预留可空 `user_id` 字段，为未来公网登录留扩展点。
+历史 SQLite 表 `note_chunks` / `note_index_jobs` / `questions` 保留但不迁移、不删除；所有当前表预留可空 `user_id` 字段，为未来公网登录留扩展点。
 
 ### 3.3 API 概览
 
@@ -69,8 +67,7 @@ personal_website/
 | 计划 | `/api/plans`、`/api/subtasks`、`/api/tasks` | CRUD；按日期/周筛选；关联完成；顺延；周导出 |
 | 日记 | `/api/diary` | CRUD；按日期、标签、关键词搜索 |
 | 闪念 | `/api/flash` | 新增/删除；按日期、关键词过滤 |
-| 笔记 | `/api/notes` | CRUD；文件夹；粘贴/批量/文件夹导入 |
-| 题库 | `/api/quiz` | 题目 CRUD；`quiz-template.yaml` 下载；YAML 导入预览/确认 |
+| 笔记 | `/api/notes` | 列表/文件夹/新建/导入/删除；单篇读取 |
 | 番茄钟 | `/api/pomodoro/sessions` | 创建会话、按日统计、可选绑定任务 |
 | 导航 | `/api/nav/categories`、`/api/nav/links`、`/api/nav/favicons` | CRUD、置顶排序、favicon 本地缓存 |
 
@@ -83,8 +80,8 @@ personal_website/
 
 ### 3.5 后端分层约定
 
-- Router 只做 HTTP 参数与响应模型；业务规则（任务联动、顺延、周导出、笔记改名移文件、题库导入、聚合）收进各自 service。
-- 文件读写统一走 `MarkdownStore`（`services/markdown_store.py`，日记/笔记各一个实例）；关键词搜索收在 `services/search.py` 接缝，P1 向量检索在此替换实现，调用方不变。
+- Router 只做 HTTP 参数与响应模型；业务规则（任务联动、顺延、周导出、笔记导入、聚合）收进各自 service。
+- 文件读写统一走 `MarkdownStore`（`services/markdown_store.py`，日记/笔记各一个实例）；关键词搜索收在 `services/search.py` 接缝，调用方与具体实现解耦。
 - 前端数据流：视图编排、Pinia store 管数据；弹窗拆独立组件，共享 `BaseModal` 与 `utils/highlight.js`。
 
 ## 4. 功能现状
@@ -101,13 +98,10 @@ personal_website/
 | 聚合首页 | #7 | 2026-08-16 | `/api/dashboard` 四块数据（任务/专注/日记/导航） |
 | 整体验收 | #8 | 2026-08-16 | 一键启动、全流程冒烟、pytest 37 项、P0 交付完成 |
 
-### P1 学习模块（进行中）
+### P1 学习模块（已精简）
 
-- 定稿（SPEC #11 / 票 #12–#17）：侧边栏「笔记」入口，页内「学习笔记 / 问答 / 答题」三页签；问答按「项目 / 最近」分组；答题为选择题/填空题 + YAML 文件级分类题库。
-- **#12 笔记模块（已完成）**：笔记 Markdown 落盘、粘贴/批量/文件夹导入、文件夹与标签管理、关键词检索、直接编辑（Ctrl+S、未保存提示）、搜索高亮。
-- **#13 题库管理（已完成）**：题目 CRUD、YAML 批量导入（解析→校验→预览→确认）、模板下载。
-- **#14 分块与向量索引（已完成）**：Markdown 标题/段落切块（≤600 字、重叠 50 字），embedding-3 生成向量入库；批量导入后台排队建索引并暴露进度接口；编辑/删除同步重建或清理；失败自动重试，索引未完成不影响笔记浏览。
-- **当前 frontier**：#15 RAG 问答；#16 答题判分 → #17 统计与整体验收。
+- **#18/#19 笔记精简（已完成）**：笔记只保留导入、列表和只读 Markdown 阅读；删除编辑、标签管理、问答、答题与向量索引入口；`markdown-it` 渲染 Typora 风格文章页。
+- 历史票：#12 笔记模块、#13 题库管理、#14 分块与向量索引已实现后被 #18/#19 精简取代；#15 RAG 问答、#16 答题判分、#17 答题统计不再进入 frontier。
 
 ## 5. 验收清单
 
@@ -122,16 +116,14 @@ personal_website/
 - [x] 后端 API 冒烟测试通过（pytest 全量通过）。
 - [x] `npm run build` 通过。
 
-### P1（进行中）
+### P1 学习模块（已精简）
 
-- [x] #14 笔记分块与向量索引。
-- [ ] #15 RAG 问答（GLM + embedding-3）。
-- [ ] #16 答题判分。
-- [ ] #17 统计与整体验收。
+- [x] #18/#19 笔记只保留导入 + 列表 + 只读 Markdown 阅读。
+- [x] 编辑、问答、答题、向量索引入口已移除，历史表保留。
+- [x] pytest 46 项通过，`npm run build` 通过，Edge 冒烟通过。
 
 ## 6. 后续规划
 
-- P1（当前）：学习笔记全文检索与问答、技术答题判分。
 - P2：网页版桌宠（纯前端）。
 - P3：爬虫与小说阅读，只处理用户自有或已授权内容，遵守 robots 和限速。
 - 公网阶段：Docker、nginx、HTTPS、单密码或完整账号体系，开启 `AUTH_ENABLED`。
@@ -157,6 +149,14 @@ personal_website/
 - 创建/更新笔记后同步重建索引，删除时清理分块与状态；批量导入由后台 worker 排队建索引，进度接口返回 `total / done / chunk_count / pending / failed / running`；失败重试耗尽后标记 failed，笔记仍可正常浏览。
 - 业务作用：笔记保存后自动变成可语义检索的知识块，后续问答可以直接按向量命中相关内容，不用每次全文扫描；批量导入时页面不会被索引过程卡住。
 - 验证：pytest 61 项通过，`npm run build` 通过；真实 embedding-3 冒烟返回 2048 维向量；双轴 review 通过（Standards 硬违规已修复，Spec 通过）。
+
+### 2026-08-18：#18/#19 笔记模块精简为导入 + 只读阅读
+
+- 新增 `note_folders` 表与 `POST /api/notes/folders`，空分类会持久化；文件夹列表合并已有笔记分类和空分类。
+- 导入弹窗展示已选文件名、支持拖拽；导入成功后自动关闭弹窗，并在笔记页显示导入结果。
+- 笔记弹窗放大到最大 1024px，打开即只读 Markdown 文章，用 `markdown-it` 渲染 Typora 风格排版。
+- 移除笔记编辑、标签管理、问答、答题、向量索引入口；历史 SQLite 表保留但不迁移、不删除。
+- 验证：pytest 46 项通过，`npm run build` 通过，Edge 端到端冒烟通过，冒烟数据已清理。
 
 ### 2026-08-17：P1 学习模块启动 + 架构整理
 

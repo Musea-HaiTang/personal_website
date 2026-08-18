@@ -9,6 +9,7 @@
 - **日记页**：Markdown 写作与即时预览、标签管理、日期/标签/关键词搜索；便利贴闪念、写作热力图、每月字数、连续记录、去年今天回顾。
 - **番茄钟**：专注/休息双模式、时长可调、暂停/继续/重置；可绑定计划任务，计时中右下角全局小窗显示，专注结束自动记录并更新今日统计。
 - **导航页**：分类书签墙、置顶常用、即时搜索；favicon 由后端抓取一次并本地缓存，刷新快且不依赖第三方服务。
+- **笔记页**：导入本地 Markdown 笔记，按文件夹和关键词查找，点开以 Typora 风格只读渲染正文。
 
 ## 技术栈
 
@@ -64,9 +65,9 @@ personal_website/
 └── frontend/
     ├── src/
     │   ├── api/             # Axios 封装
-    │   ├── router/          # 五个页面路由
+    │   ├── router/          # 六个页面路由
     │   ├── stores/          # Pinia
-    │   ├── views/           # 五个页面
+    │   ├── views/           # 六个页面
     │   └── components/      # 全局小窗计时器等
     ├── package.json
     └── vite.config.js       # /api 代理到后端
@@ -78,7 +79,7 @@ personal_website/
 - 日记正文：按日期命名的 Markdown 文件 `backend/data/diary/YYYY-MM-DD.md`，不依赖数据库，可直接查看和迁移。
 - 导航图标：后端抓取一次后缓存到 `backend/data/favicons/`，TTL 7 天刷新。
 
-数据表：`weekly_plans`（本周计划）、`subtasks`（子任务）、`tasks`（今日任务）、`diary_entries`（日记元数据）、`flash_notes`（闪念）、`pomodoro_sessions`（番茄记录）、`nav_categories`（导航分类）、`nav_links`（导航链接）。所有表预留可空 `user_id` 字段，为未来公网登录留扩展点。
+数据表：`weekly_plans`（本周计划）、`subtasks`（子任务）、`tasks`（今日任务）、`diary_entries`（日记元数据）、`flash_notes`（闪念）、`notes`（笔记元数据）、`note_folders`（笔记分类）、`pomodoro_sessions`（番茄记录）、`nav_categories`（导航分类）、`nav_links`（导航链接）。所有当前表预留可空 `user_id` 字段，为未来公网登录留扩展点。
 
 ## API 概览
 
@@ -89,6 +90,7 @@ personal_website/
 | 计划 | `/api/plans`、`/api/subtasks`、`/api/tasks` | 计划/子任务/今日任务 CRUD、按日筛选、顺延、周导出 |
 | 日记 | `/api/diary` | CRUD、日期/标签/关键词搜索 |
 | 闪念 | `/api/flash` | 新增、列表（可按日期/关键词过滤）、删除 |
+| 笔记 | `/api/notes` | 列表/文件夹/新建/导入/删除、单篇读取 |
 | 番茄钟 | `/api/pomodoro/sessions` | 创建会话记录（可选绑定任务）、按日统计 |
 | 导航 | `/api/nav/categories`、`/api/nav/links`、`/api/nav/favicons` | 分类/链接 CRUD、favicon 缓存获取 |
 
@@ -116,7 +118,7 @@ P0 验收结果：后端全量 pytest 37 项通过，前端 `npm run build` 通�
 
 ## 后续规划
 
-- **P1**：学习笔记导入与全文检索、基于 DeepSeek 的笔记问答和技术答题判分。
+- **P1**：笔记导入与只读 Markdown 阅读（已完成）。
 - **P2**：网页版桌宠（纯前端）。
 - **P3**：爬虫与小说阅读，只处理用户自有或已授权内容，遵守 robots 与限速。
 - **公网阶段**：Docker、nginx、HTTPS、单密码或完整账号体系，开启 `AUTH_ENABLED`。
