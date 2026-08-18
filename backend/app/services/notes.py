@@ -4,9 +4,10 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.models.note_folders import NoteFolder
 from app.models.notes import Note
-from app.schemas.notes import FolderOut, ImportResult, IndexProgress, NoteCreate, NoteOut, NoteUpdate
-from app.services import indexing, search, tags
+from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteOut
+from app.services import search, tags
 from app.services.markdown_store import notes_store
 
 
@@ -49,7 +50,24 @@ def list_folders(db: Session) -> list[FolderOut]:
     counts: dict[str, int] = {}
     for folder, _ in rows:
         counts[folder] = counts.get(folder, 0) + 1
+    for folder_name, in db.execute(select(NoteFolder.name)):
+        counts.setdefault(folder_name, 0)
     return [FolderOut(folder=folder, count=count) for folder, count in sorted(counts.items())]
+
+
+def create_folder(db: Session, payload: FolderCreate) -> FolderOut:
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="分类名称不能为空")
+    exists = db.scalar(select(NoteFolder).where(NoteFolder.name == name)) is not None
+    exists = exists or db.scalar(select(Note.id).where(Note.folder == name)) is not None
+    if exists:
+        raise HTTPException(status_code=409, detail="分类已存在")
+    folder = NoteFolder(name=name)
+    db.add(folder)
+    db.commit()
+    db.refresh(folder)
+    return FolderOut(folder=folder.name, count=0)
 
 
 def get_note(db: Session, note_id: int) -> NoteOut:
@@ -66,7 +84,6 @@ def create_note(db: Session, payload: NoteCreate) -> NoteOut:
     db.add(note)
     db.commit()
     db.refresh(note)
-    indexing.rebuild_note_index(db, note.id)
     return note_to_out(note)
 
 
@@ -74,7 +91,6 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
     """批量导入：UTF-8 解码 → 同名自动改名 → 落盘入库；逐文件失败不中断。"""
     target = folder.strip() or "未分类"
     created: list[NoteOut] = []
-    created_ids: list[int] = []
     renamed: list[str] = []
     errors: list[str] = []
 
@@ -96,64 +112,12 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
         db.commit()
         db.refresh(note)
         created.append(note_to_out(note))
-        created_ids.append(note.id)
 
-    indexing.queue_import_notes(created_ids)
     return ImportResult(created=created, renamed=renamed, errors=errors)
-
-
-def update_note(db: Session, note_id: int, payload: NoteUpdate) -> NoteOut:
-    note = note_or_404(db, note_id)
-    data = payload.model_dump(exclude_unset=True)
-
-    if "tags" in data and data["tags"] is None:
-        data["tags"] = ""
-    for key in ("title", "folder", "content"):
-        if data.get(key) is None:
-            data.pop(key, None)
-
-    if "tags" in data and data["tags"] is not None:
-        data["tags"] = tags.to_str(data["tags"])
-
-    new_folder = data.get("folder", note.folder).strip() or "未分类"
-    new_title = data.get("title", note.title).strip()
-    new_path = notes_store.path_for(new_folder, new_title)
-
-    if "title" in data or "folder" in data:
-        if (new_folder, new_title) != (note.folder, note.title):
-            existing = db.scalar(
-                select(Note).where(Note.folder == new_folder, Note.title == new_title, Note.id != note.id)
-            )
-            if existing is not None:
-                raise HTTPException(status_code=409, detail="同文件夹已有同名笔记，请改名或换文件夹")
-            old_path = Path(note.file_path)
-            new_path.parent.mkdir(parents=True, exist_ok=True)
-            if old_path.exists() and old_path != new_path:
-                old_path.rename(new_path)
-            note.file_path = str(new_path)
-
-    if "content" in data and data["content"] is not None:
-        notes_store.write(Path(note.file_path), data["content"])
-
-    if "title" in data:
-        note.title = new_title
-    if "folder" in data:
-        note.folder = new_folder
-    if "tags" in data:
-        note.tags = data["tags"]
-    db.commit()
-    db.refresh(note)
-    indexing.rebuild_note_index(db, note.id)
-    return note_to_out(note)
 
 
 def delete_note(db: Session, note_id: int) -> None:
     note = note_or_404(db, note_id)
-    indexing.delete_note_index(db, note_id)
     notes_store.delete(Path(note.file_path))
     db.delete(note)
     db.commit()
-
-
-def get_index_progress(db: Session) -> IndexProgress:
-    return indexing.index_progress(db)

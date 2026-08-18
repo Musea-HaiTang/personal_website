@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.notes import FolderOut, ImportResult, IndexProgress, NoteCreate, NoteOut, NoteUpdate
+from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteOut
 from app.services import notes as notes_service
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
@@ -22,9 +22,9 @@ def list_folders(db: Session = Depends(get_db)):
     return notes_service.list_folders(db)
 
 
-@router.get("/index/progress", response_model=IndexProgress)
-def get_index_progress(db: Session = Depends(get_db)):
-    return notes_service.get_index_progress(db)
+@router.post("/folders", response_model=FolderOut, status_code=201)
+def create_folder(payload: FolderCreate, db: Session = Depends(get_db)):
+    return notes_service.create_folder(db, payload)
 
 
 @router.get("/{note_id}", response_model=NoteOut)
@@ -44,11 +44,6 @@ def import_notes(
     db: Session = Depends(get_db),
 ):
     return notes_service.import_notes(db, folder, files)
-
-
-@router.put("/{note_id}", response_model=NoteOut)
-def update_note(note_id: int, payload: NoteUpdate, db: Session = Depends(get_db)):
-    return notes_service.update_note(db, note_id, payload)
 
 
 @router.delete("/{note_id}", status_code=204)

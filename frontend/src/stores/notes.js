@@ -36,8 +36,12 @@ export const useNotesStore = defineStore('notes', {
     async create(payload) {
       return (await api.post('/notes', payload)).data
     },
-    async update(id, payload) {
-      return (await api.put(`/notes/${id}`, payload)).data
+    async createFolder(name) {
+      const folder = (await api.post('/notes/folders', { name })).data
+      if (!this.folders.some((f) => f.folder === folder.folder)) {
+        this.folders = [...this.folders, folder].sort((a, b) => a.folder.localeCompare(b.folder, 'zh'))
+      }
+      return folder
     },
     async remove(id) {
       await api.delete(`/notes/${id}`)

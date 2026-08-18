@@ -25,11 +25,6 @@ def init_db() -> None:
         if "weekly_plans" not in tables and "tasks" in tables:
             conn.execute(text("DROP TABLE tasks"))
             conn.commit()
-        if "questions" in tables:
-            cols = {col["name"] for col in inspect(engine).get_columns("questions")}
-            if "accept" not in cols:
-                conn.execute(text("ALTER TABLE questions ADD COLUMN accept VARCHAR(500) NOT NULL DEFAULT '[]'"))
-                conn.commit()
     Base.metadata.create_all(bind=engine)
     # 真正执行一次查询，确保 SQLite 数据库文件落盘
     with engine.connect() as conn:

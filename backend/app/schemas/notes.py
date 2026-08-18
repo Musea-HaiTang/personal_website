@@ -10,11 +10,8 @@ class NoteCreate(BaseModel):
     content: str = ""
 
 
-class NoteUpdate(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    folder: str | None = Field(default=None, max_length=100)
-    tags: list[str] | None = None
-    content: str | None = None
+class FolderCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
 
 
 class NoteOut(BaseModel):
@@ -37,12 +34,3 @@ class ImportResult(BaseModel):
     created: list[NoteOut]
     renamed: list[str]
     errors: list[str]
-
-
-class IndexProgress(BaseModel):
-    total: int
-    done: int
-    chunk_count: int
-    pending: int
-    failed: int
-    running: bool

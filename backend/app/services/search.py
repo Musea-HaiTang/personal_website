@@ -1,4 +1,4 @@
-"""搜索接缝：先提供内存关键词匹配；P1 向量检索在此替换实现，调用方不变。"""
+"""搜索接缝：当前提供内存关键词匹配，调用方与具体实现解耦。"""
 
 
 def matches(haystacks: list[str | None], keyword: str | None) -> bool:

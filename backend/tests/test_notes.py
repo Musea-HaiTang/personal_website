@@ -50,6 +50,18 @@ def test_notes_folders_counts(client):
     assert {"folder": "Vue3 笔记", "count": 1} in folders
 
 
+def test_empty_note_folder_persists(client):
+    resp = client.post("/api/notes/folders", json={"name": "待整理"})
+    assert resp.status_code == 201
+    assert resp.json() == {"folder": "待整理", "count": 0}
+
+    folders = client.get("/api/notes/folders").json()
+    assert {"folder": "待整理", "count": 0} in folders
+
+    assert client.post("/api/notes/folders", json={"name": "待整理"}).status_code == 409
+    assert client.post("/api/notes/folders", json={"name": "   "}).status_code == 422
+
+
 def test_note_import_autorename_and_errors(client):
     resp = client.post(
         "/api/notes/import",
@@ -72,25 +84,11 @@ def test_note_import_autorename_and_errors(client):
     assert titles == ["装饰器", "装饰器(1)"]
 
 
-def test_note_update_moves_file_and_updates_content(client):
-    note = _create(client, title="旧标题", folder="Python 笔记", content="旧内容").json()
+def test_note_edit_and_index_routes_are_removed(client):
+    note = _create(client).json()
 
-    resp = client.put(
-        f"/api/notes/{note['id']}",
-        json={"title": "新标题", "folder": "Vue3 笔记", "tags": ["进阶"], "content": "新内容"},
-    )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["title"] == "新标题"
-    assert data["folder"] == "Vue3 笔记"
-    assert data["tags"] == ["进阶"]
-    assert data["content"] == "新内容"
-
-    old_path = notes_store.root / "Python 笔记" / "旧标题.md"
-    new_path = notes_store.root / "Vue3 笔记" / "新标题.md"
-    assert not old_path.exists()
-    assert new_path.exists()
-    assert new_path.read_text(encoding="utf-8") == "新内容"
+    assert client.put(f"/api/notes/{note['id']}", json={"content": "新内容"}).status_code == 405
+    assert client.get("/api/notes/index/progress").status_code == 404
 
 
 def test_note_delete_removes_file(client):
@@ -102,12 +100,3 @@ def test_note_delete_removes_file(client):
 
 def test_note_validation(client):
     assert client.post("/api/notes", json={"title": "", "content": ""}).status_code == 422
-
-
-def test_note_update_explicit_null_no_crash(client):
-    note = _create(client, tags=["基础"], content="内容").json()
-    resp = client.put(f"/api/notes/{note['id']}", json={"tags": None, "title": None, "content": None})
-    assert resp.status_code == 200
-    assert resp.json()["tags"] == []
-    assert resp.json()["title"] == "装饰器原理"
-    assert resp.json()["content"] == "内容"
