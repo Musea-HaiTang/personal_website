@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     auth_enabled: bool = False
     data_dir: Path = BASE_DIR / "data"
     database_url: str | None = None
+    zai_api_key: str | None = None
+    zhipu_api_key: str | None = None
+    embedding_model: str = "embedding-3"
+    embedding_mock: bool = False
+    embedding_retries: int = 3
 
     @model_validator(mode="after")
     def _ensure_database_url(self) -> "Settings":

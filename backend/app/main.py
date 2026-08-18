@@ -6,12 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import init_db
 from app.routers import dashboard, diary, flash, nav, notes, pomodoro, quiz, tasks
+from app.services.indexing import index_worker
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    index_worker.start()
     yield
+    index_worker.stop()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)

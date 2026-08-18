@@ -1,27 +1,6 @@
-from pathlib import Path
-
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import delete, select
 
-from app.database import SessionLocal
-from app.main import app
-from app.models.notes import Note
 from app.services.markdown_store import notes_store
-
-
-@pytest.fixture()
-def client():
-    with TestClient(app) as test_client:
-        yield test_client
-    with SessionLocal() as db:
-        notes = db.scalars(select(Note)).all()
-        for note in notes:
-            path = Path(note.file_path)
-            if path.exists():
-                path.unlink()
-        db.execute(delete(Note))
-        db.commit()
 
 
 def _create(client: TestClient, title: str = "装饰器原理", folder: str = "Python 笔记", tags=None, content: str = "# 装饰器"):

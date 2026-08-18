@@ -5,8 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.notes import Note
-from app.schemas.notes import FolderOut, ImportResult, NoteCreate, NoteOut, NoteUpdate
-from app.services import search, tags
+from app.schemas.notes import FolderOut, ImportResult, IndexProgress, NoteCreate, NoteOut, NoteUpdate
+from app.services import indexing, search, tags
 from app.services.markdown_store import notes_store
 
 
@@ -66,6 +66,7 @@ def create_note(db: Session, payload: NoteCreate) -> NoteOut:
     db.add(note)
     db.commit()
     db.refresh(note)
+    indexing.rebuild_note_index(db, note.id)
     return note_to_out(note)
 
 
@@ -73,6 +74,7 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
     """批量导入：UTF-8 解码 → 同名自动改名 → 落盘入库；逐文件失败不中断。"""
     target = folder.strip() or "未分类"
     created: list[NoteOut] = []
+    created_ids: list[int] = []
     renamed: list[str] = []
     errors: list[str] = []
 
@@ -94,7 +96,9 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
         db.commit()
         db.refresh(note)
         created.append(note_to_out(note))
+        created_ids.append(note.id)
 
+    indexing.queue_import_notes(created_ids)
     return ImportResult(created=created, renamed=renamed, errors=errors)
 
 
@@ -139,11 +143,17 @@ def update_note(db: Session, note_id: int, payload: NoteUpdate) -> NoteOut:
         note.tags = data["tags"]
     db.commit()
     db.refresh(note)
+    indexing.rebuild_note_index(db, note.id)
     return note_to_out(note)
 
 
 def delete_note(db: Session, note_id: int) -> None:
     note = note_or_404(db, note_id)
+    indexing.delete_note_index(db, note_id)
     notes_store.delete(Path(note.file_path))
     db.delete(note)
     db.commit()
+
+
+def get_index_progress(db: Session) -> IndexProgress:
+    return indexing.index_progress(db)

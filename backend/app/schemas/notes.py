@@ -37,3 +37,12 @@ class ImportResult(BaseModel):
     created: list[NoteOut]
     renamed: list[str]
     errors: list[str]
+
+
+class IndexProgress(BaseModel):
+    total: int
+    done: int
+    chunk_count: int
+    pending: int
+    failed: int
+    running: bool
