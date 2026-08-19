@@ -51,7 +51,6 @@ async function removeNote(note) {
   if (!window.confirm(`删除《${note.title}》？正文文件也会被删除。`)) return
   try {
     await notesStore.remove(note.id)
-    if (readerId.value === note.id) readerId.value = null
     await notesStore.refresh()
   } catch (e) {
     window.alert(e.response?.data?.detail || '删除失败')

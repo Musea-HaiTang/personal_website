@@ -90,7 +90,17 @@ function slugify(text) {
 function buildOutline() {
   const rootEl = bodyEl.value
   if (!rootEl) return
-  const seen = new Set()
+  // h1 由 note-title 承担：正文 h1 与标题重复则去掉，其余降级为 h2 纳入大纲
+  const contentH1 = [...rootEl.querySelectorAll('h1:not(.note-title)')]
+  if (contentH1.length && contentH1[0].textContent.trim() === (current.value?.title || '').trim()) {
+    contentH1.shift().remove()
+  }
+  contentH1.forEach((h1) => {
+    const h2 = document.createElement('h2')
+    h2.innerHTML = h1.innerHTML
+    h1.replaceWith(h2)
+  })
+  const seen = new Set(['note-title'])
   const headings = [...rootEl.querySelectorAll('h2, h3')]
   headings.forEach((h) => {
     const base = slugify(h.textContent)
@@ -167,11 +177,17 @@ function switchNote(note) {
               :class="{ collapsed: nodeCollapsed['note-title'] }"
             >
               <div class="ol-row">
-                <button class="ol-chev" title="展开/收起" @click="toggleNode(outlineRoot)">
+                <button
+                  v-if="outlineRoot.children.length"
+                  class="ol-chev"
+                  title="展开/收起"
+                  @click="toggleNode(outlineRoot)"
+                >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
+                <span v-else class="ol-chev empty"></span>
                 <button class="ol-item h1" @click="jumpTo(outlineRoot.id)">{{ outlineRoot.text }}</button>
               </div>
               <div v-if="!nodeCollapsed['note-title']" class="ol-children">
@@ -247,14 +263,32 @@ function switchNote(note) {
 
 <style scoped>
 .reader-modal {
+  /* Github 阅读主题局部令牌（组件内使用，不进入全局主题） */
+  --gh-canvas: #fff;
+  --gh-ink: #24292e;
+  --gh-strong: #1f2328;
+  --gh-muted: #57606a;
+  --gh-muted-2: #6a737d;
+  --gh-border: #eaecef;
+  --gh-border-strong: #d0d7de;
+  --gh-blockquote: #dfe2e5;
+  --gh-hr: #e1e4e8;
+  --gh-hover: #f6f8fa;
+  --gh-chev: #8c959f;
+  --gh-toggle-hover: #eceef0;
+  --gh-scrollbar: #b6bcc4;
+  --gh-link: #0366d6;
+  --gh-code-inline: rgba(27, 31, 35, 0.06);
+  --gh-shadow-lg: rgba(0, 0, 0, 0.24);
+  --gh-shadow-sm: rgba(0, 0, 0, 0.12);
   position: relative;
   width: min(1440px, 100%);
   height: min(94vh, 980px);
-  background: #fff;
+  background: var(--gh-canvas);
   border-radius: 12px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.24);
+  box-shadow: 0 18px 50px var(--gh-shadow-lg);
   overflow: hidden;
-  color: #24292e;
+  color: var(--gh-ink);
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
 }
@@ -272,7 +306,7 @@ function switchNote(note) {
   display: flex;
   flex-direction: column;
   padding: 10px 8px 12px;
-  border-right: 1px solid #eaecef;
+  border-right: 1px solid var(--gh-border);
   overflow: hidden;
   font-family: var(--sans);
   transition: width 0.3s ease, padding 0.3s ease, border-right-color 0.3s ease;
@@ -282,25 +316,25 @@ function switchNote(note) {
   gap: 2px;
   padding: 4px 4px 0;
   flex-shrink: 0;
-  border-bottom: 1px solid #eaecef;
+  border-bottom: 1px solid var(--gh-border);
 }
 .side-tab {
   flex: 1;
   padding: 7px 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #57606a;
+  color: var(--gh-muted);
   border-bottom: 2px solid transparent;
   border-radius: 6px 6px 0 0;
   cursor: pointer;
 }
 .side-tab:hover {
-  background: #f6f8fa;
-  color: #1f2328;
+  background: var(--gh-hover);
+  color: var(--gh-strong);
 }
 .side-tab.active {
-  color: #1f2328;
-  border-bottom-color: #1f2328;
+  color: var(--gh-strong);
+  border-bottom-color: var(--gh-strong);
 }
 .outline-tree {
   flex: 1;
@@ -324,7 +358,7 @@ function switchNote(note) {
   padding: 2px 10px 6px;
   font-size: 11.5px;
   font-weight: 600;
-  color: #6a737d;
+  color: var(--gh-muted-2);
 }
 .file-item {
   display: block;
@@ -333,18 +367,18 @@ function switchNote(note) {
   text-align: left;
   border-radius: 6px;
   font-size: 13px;
-  color: #24292e;
+  color: var(--gh-ink);
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .file-item:hover {
-  background: #f6f8fa;
+  background: var(--gh-hover);
 }
 .file-item.active {
-  background: #f6f8fa;
-  color: #0366d6;
+  background: var(--gh-hover);
+  color: var(--gh-link);
   font-weight: 600;
 }
 .ol-node.collapsed .ol-children {
@@ -367,12 +401,12 @@ function switchNote(note) {
   height: 24px;
   flex-shrink: 0;
   border-radius: 5px;
-  color: #8c959f;
+  color: var(--gh-chev);
   cursor: pointer;
 }
 .ol-chev:hover {
-  color: #1f2328;
-  background: #f6f8fa;
+  color: var(--gh-strong);
+  background: var(--gh-hover);
 }
 .ol-chev.empty {
   pointer-events: none;
@@ -391,21 +425,21 @@ function switchNote(note) {
   font-family: var(--sans);
   font-size: 14px;
   line-height: 1.45;
-  color: #57606a;
+  color: var(--gh-muted);
   text-align: left;
   cursor: pointer;
 }
 .ol-row:hover .ol-item {
-  background: #f6f8fa;
-  color: #1f2328;
+  background: var(--gh-hover);
+  color: var(--gh-strong);
 }
 .ol-item.h1 {
   font-weight: 700;
-  color: #1f2328;
+  color: var(--gh-strong);
 }
 .ol-item.h2 {
   font-weight: 600;
-  color: #1f2328;
+  color: var(--gh-strong);
 }
 
 /* ---------- 侧栏开关 ---------- */
@@ -419,10 +453,10 @@ function switchNote(note) {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  border: 1px solid #d0d7de;
-  background: #fff;
-  color: #57606a;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  border: 1px solid var(--gh-border-strong);
+  background: var(--gh-canvas);
+  color: var(--gh-muted);
+  box-shadow: 0 1px 4px var(--gh-shadow-sm);
   cursor: pointer;
   transition: left 0.3s ease;
 }
@@ -431,7 +465,7 @@ function switchNote(note) {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: #eceef0;
+  background: var(--gh-toggle-hover);
   opacity: 0;
   transition: opacity 0.18s ease;
 }
@@ -439,7 +473,7 @@ function switchNote(note) {
   opacity: 1;
 }
 .sidebar-toggle:hover .st-icon {
-  color: #1f2328;
+  color: var(--gh-strong);
 }
 .sidebar-toggle .st-icon {
   position: relative;
@@ -456,8 +490,8 @@ function switchNote(note) {
   white-space: nowrap;
   padding: 4px 10px;
   border-radius: 6px;
-  background: #1f2328;
-  color: #fff;
+  background: var(--gh-strong);
+  color: var(--gh-canvas);
   font-size: 12px;
   opacity: 0;
   pointer-events: none;
@@ -505,20 +539,20 @@ function switchNote(note) {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  border: 1px solid #d0d7de;
-  background: #fff;
-  color: #57606a;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
+  border: 1px solid var(--gh-border-strong);
+  background: var(--gh-canvas);
+  color: var(--gh-muted);
+  box-shadow: 0 1px 4px var(--gh-shadow-sm);
   cursor: pointer;
 }
 .reader-close:hover {
-  border-color: #0366d6;
-  color: #0366d6;
+  border-color: var(--gh-link);
+  color: var(--gh-link);
 }
 
 /* ---------- Typora Github 主题正文 ---------- */
 .markdown-body {
-  color: #24292e;
+  color: var(--gh-ink);
   font-size: 16px;
   line-height: 1.75;
   overflow-wrap: break-word;
@@ -526,19 +560,19 @@ function switchNote(note) {
 .markdown-body :deep(.note-title) {
   margin: 0 0 6px;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #eaecef;
+  border-bottom: 1px solid var(--gh-border);
   font-size: 1.9em;
   font-weight: 600;
   line-height: 1.3;
 }
 .markdown-body :deep(.meta-line) {
   margin: 6px 0 0;
-  color: #6a737d;
+  color: var(--gh-muted-2);
   font-size: 13px;
 }
 .markdown-body :deep(.empty-tip) {
   margin: 1em 0;
-  color: #6a737d;
+  color: var(--gh-muted-2);
   font-size: 14px;
 }
 .markdown-body :deep(h1),
@@ -552,12 +586,12 @@ function switchNote(note) {
 .markdown-body :deep(h1) {
   font-size: 1.9em;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #eaecef;
+  border-bottom: 1px solid var(--gh-border);
 }
 .markdown-body :deep(h2) {
   font-size: 1.5em;
   padding-bottom: 0.3em;
-  border-bottom: 1px solid #eaecef;
+  border-bottom: 1px solid var(--gh-border);
 }
 .markdown-body :deep(h3) {
   font-size: 1.25em;
@@ -577,7 +611,7 @@ function switchNote(note) {
   margin: 0.25em 0;
 }
 .markdown-body :deep(a) {
-  color: #0366d6;
+  color: var(--gh-link);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
@@ -587,21 +621,21 @@ function switchNote(note) {
 .markdown-body :deep(blockquote) {
   margin: 0.9em 0;
   padding: 0.15em 1em;
-  border-left: 4px solid #dfe2e5;
-  color: #6a737d;
+  border-left: 4px solid var(--gh-blockquote);
+  color: var(--gh-muted-2);
 }
 .markdown-body :deep(code) {
   padding: 0.15em 0.4em;
   border-radius: 6px;
-  background: rgba(27, 31, 35, 0.06);
+  background: var(--gh-code-inline);
   font-family: var(--mono, 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace);
   font-size: 0.88em;
 }
 .markdown-body :deep(pre) {
   margin: 0.9em 0;
   padding: 14px 16px;
-  background: #f6f8fa;
-  border: 1px solid #eaecef;
+  background: var(--gh-hover);
+  border: 1px solid var(--gh-border);
   border-radius: 8px;
   overflow: auto;
 }
@@ -620,17 +654,17 @@ function switchNote(note) {
 .markdown-body :deep(th),
 .markdown-body :deep(td) {
   padding: 7px 12px;
-  border: 1px solid #d0d7de;
+  border: 1px solid var(--gh-border-strong);
   text-align: left;
 }
 .markdown-body :deep(th) {
-  background: #f6f8fa;
+  background: var(--gh-hover);
   font-weight: 600;
 }
 .markdown-body :deep(hr) {
   margin: 1.6em 0;
   border: 0;
-  border-top: 1px solid #e1e4e8;
+  border-top: 1px solid var(--gh-hr);
 }
 .markdown-body :deep(img) {
   max-width: 100%;
@@ -645,7 +679,7 @@ function switchNote(note) {
   transform: translateY(1px);
 }
 .markdown-body :deep(li.task-list-item:has(input:checked)) {
-  color: #6a737d;
+  color: var(--gh-muted-2);
   text-decoration: line-through;
 }
 .reader-body::-webkit-scrollbar,
@@ -661,12 +695,12 @@ function switchNote(note) {
 .reader-body::-webkit-scrollbar-thumb,
 .outline-tree::-webkit-scrollbar-thumb,
 .file-panel::-webkit-scrollbar-thumb {
-  background: #d0d7de;
+  background: var(--gh-border-strong);
   border-radius: 999px;
 }
 .reader-body::-webkit-scrollbar-thumb:hover,
 .outline-tree::-webkit-scrollbar-thumb:hover,
 .file-panel::-webkit-scrollbar-thumb:hover {
-  background: #b6bcc4;
+  background: var(--gh-scrollbar);
 }
 </style>
