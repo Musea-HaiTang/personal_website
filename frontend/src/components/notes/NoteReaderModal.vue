@@ -15,6 +15,7 @@ import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
 
 import BaseModal from '../BaseModal.vue'
+import { useNotesStore } from '../../stores/notes'
 import { fmtDate } from '../../utils/date'
 
 hljs.registerLanguage('bash', bash)
@@ -31,6 +32,19 @@ const props = defineProps({
   note: { type: Object, default: null }
 })
 const emit = defineEmits(['close'])
+
+const notesStore = useNotesStore()
+const current = ref(props.note)
+watch(
+  () => props.note,
+  (n) => {
+    current.value = n
+  }
+)
+
+const siblings = computed(() =>
+  notesStore.notes.filter((n) => n.folder === current.value?.folder)
+)
 
 const md = new MarkdownIt({
   html: false,
@@ -53,7 +67,7 @@ const md = new MarkdownIt({
 })
 md.use(taskLists)
 
-const renderedHtml = computed(() => md.render(props.note?.content || ''))
+const renderedHtml = computed(() => md.render(current.value?.content || ''))
 
 /* ---------- 侧栏状态 ---------- */
 const activeTab = ref('outline')
@@ -86,7 +100,7 @@ function buildOutline() {
     seen.add(id)
     h.id = id
   })
-  const root = { id: 'note-title', text: props.note?.title || '无标题', children: [] }
+  const root = { id: 'note-title', text: current.value?.title || '无标题', children: [] }
   let currentH2 = null
   headings.forEach((h) => {
     const item = { id: h.id, text: h.textContent.trim(), children: [] }
@@ -104,7 +118,7 @@ function buildOutline() {
 }
 
 watch(
-  [renderedHtml, () => props.note?.id],
+  [renderedHtml, current],
   async () => {
     await nextTick()
     buildOutline()
@@ -119,6 +133,10 @@ function toggleNode(node) {
 function jumpTo(id) {
   const el = document.getElementById(id)
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function switchNote(note) {
+  current.value = note
 }
 </script>
 
@@ -184,14 +202,25 @@ function jumpTo(id) {
               </div>
             </div>
           </nav>
-          <div v-else class="file-panel"></div>
+          <div v-else class="file-panel">
+            <div class="file-caption">{{ current?.folder }}</div>
+            <button
+              v-for="n in siblings"
+              :key="n.id"
+              class="file-item"
+              :class="{ active: n.id === current?.id }"
+              @click="switchNote(n)"
+            >
+              {{ n.title }}
+            </button>
+          </div>
         </aside>
 
         <div ref="bodyEl" class="reader-body markdown-body">
-          <h1 id="note-title" class="note-title">{{ note?.title || '无标题' }}</h1>
+          <h1 id="note-title" class="note-title">{{ current?.title || '无标题' }}</h1>
           <p class="meta-line">
-            {{ note?.folder }} / {{ fmtDate(note?.updated_at) }}
-            <template v-for="t in note?.tags || []" :key="t"> #{{ t }}</template>
+            {{ current?.folder }} / {{ fmtDate(current?.updated_at) }}
+            <template v-for="t in current?.tags || []" :key="t"> #{{ t }}</template>
           </p>
           <div v-if="renderedHtml" v-html="renderedHtml"></div>
           <p v-else class="empty-tip">暂无内容</p>
@@ -290,6 +319,33 @@ function jumpTo(id) {
   flex-direction: column;
   gap: 1px;
   padding: 8px 4px 12px;
+}
+.file-caption {
+  padding: 2px 10px 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #6a737d;
+}
+.file-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #24292e;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.file-item:hover {
+  background: #f6f8fa;
+}
+.file-item.active {
+  background: #f6f8fa;
+  color: #0366d6;
+  font-weight: 600;
 }
 .ol-node.collapsed .ol-children {
   display: none;
