@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import MarkdownIt from 'markdown-it'
 import taskLists from 'markdown-it-task-lists'
 import hljs from 'highlight.js/lib/core'
@@ -54,20 +54,159 @@ const md = new MarkdownIt({
 md.use(taskLists)
 
 const renderedHtml = computed(() => md.render(props.note?.content || ''))
+
+/* ---------- 侧栏状态 ---------- */
+const activeTab = ref('outline')
+const sidebarCollapsed = ref(false)
+
+/* ---------- 大纲 ---------- */
+const bodyEl = ref(null)
+const outlineRoot = ref(null)
+const nodeCollapsed = ref({})
+
+function slugify(text) {
+  const slug = (text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug || 'section'
+}
+
+function buildOutline() {
+  const rootEl = bodyEl.value
+  if (!rootEl) return
+  const seen = new Set()
+  const headings = [...rootEl.querySelectorAll('h2, h3')]
+  headings.forEach((h) => {
+    const base = slugify(h.textContent)
+    let id = base
+    let i = 2
+    while (seen.has(id)) id = `${base}-${i++}`
+    seen.add(id)
+    h.id = id
+  })
+  const root = { id: 'note-title', text: props.note?.title || '无标题', children: [] }
+  let currentH2 = null
+  headings.forEach((h) => {
+    const item = { id: h.id, text: h.textContent.trim(), children: [] }
+    if (h.tagName === 'H2') {
+      root.children.push(item)
+      currentH2 = item
+    } else if (currentH2) {
+      currentH2.children.push(item)
+    } else {
+      root.children.push(item)
+    }
+  })
+  outlineRoot.value = root
+  nodeCollapsed.value = {}
+}
+
+watch(
+  [renderedHtml, () => props.note?.id],
+  async () => {
+    await nextTick()
+    buildOutline()
+  },
+  { immediate: true }
+)
+
+function toggleNode(node) {
+  nodeCollapsed.value = { ...nodeCollapsed.value, [node.id]: !nodeCollapsed.value[node.id] }
+}
+
+function jumpTo(id) {
+  const el = document.getElementById(id)
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 </script>
 
 <template>
   <BaseModal @close="emit('close')">
-    <div class="reader-modal">
-      <div class="reader-body markdown-body">
-        <h1 class="note-title">{{ note?.title || '无标题' }}</h1>
-        <p class="meta-line">
-          {{ note?.folder }} / {{ fmtDate(note?.updated_at) }}
-          <template v-for="t in note?.tags || []" :key="t"> #{{ t }}</template>
-        </p>
-        <div v-if="renderedHtml" v-html="renderedHtml"></div>
-        <p v-else class="empty-tip">暂无内容</p>
+    <div class="reader-modal" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+      <div class="reader-main">
+        <aside class="reader-side">
+          <div class="side-tabs">
+            <button
+              class="side-tab"
+              :class="{ active: activeTab === 'outline' }"
+              @click="activeTab = 'outline'"
+            >
+              大纲
+            </button>
+            <button
+              class="side-tab"
+              :class="{ active: activeTab === 'files' }"
+              @click="activeTab = 'files'"
+            >
+              文件
+            </button>
+          </div>
+          <nav v-if="activeTab === 'outline' && outlineRoot" class="outline-tree">
+            <div
+              class="ol-node"
+              :class="{ collapsed: nodeCollapsed['note-title'] }"
+            >
+              <div class="ol-row">
+                <button class="ol-chev" title="展开/收起" @click="toggleNode(outlineRoot)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </button>
+                <button class="ol-item h1" @click="jumpTo(outlineRoot.id)">{{ outlineRoot.text }}</button>
+              </div>
+              <div v-if="!nodeCollapsed['note-title']" class="ol-children">
+                <div
+                  v-for="h2 in outlineRoot.children"
+                  :key="h2.id"
+                  class="ol-node"
+                  :class="{ collapsed: nodeCollapsed[h2.id] }"
+                >
+                  <div class="ol-row">
+                    <button v-if="h2.children.length" class="ol-chev" title="展开/收起" @click="toggleNode(h2)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
+                        <path d="M6 9l6 6 6-6" />
+                      </svg>
+                    </button>
+                    <span v-else class="ol-chev empty"></span>
+                    <button class="ol-item h2" @click="jumpTo(h2.id)">{{ h2.text }}</button>
+                  </div>
+                  <div v-if="h2.children.length && !nodeCollapsed[h2.id]" class="ol-children">
+                    <div v-for="h3 in h2.children" :key="h3.id" class="ol-node">
+                      <div class="ol-row">
+                        <span class="ol-chev empty"></span>
+                        <button class="ol-item h3" @click="jumpTo(h3.id)">{{ h3.text }}</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </nav>
+          <div v-else class="file-panel"></div>
+        </aside>
+
+        <div ref="bodyEl" class="reader-body markdown-body">
+          <h1 id="note-title" class="note-title">{{ note?.title || '无标题' }}</h1>
+          <p class="meta-line">
+            {{ note?.folder }} / {{ fmtDate(note?.updated_at) }}
+            <template v-for="t in note?.tags || []" :key="t"> #{{ t }}</template>
+          </p>
+          <div v-if="renderedHtml" v-html="renderedHtml"></div>
+          <p v-else class="empty-tip">暂无内容</p>
+        </div>
+
+        <button
+          class="sidebar-toggle"
+          title="展示/隐藏侧边栏"
+          @click="sidebarCollapsed = !sidebarCollapsed"
+        >
+          <span class="st-icon">‹</span>
+          <span class="st-label">展示/隐藏侧边栏</span>
+        </button>
       </div>
+
       <button class="reader-close" title="关闭" @click="emit('close')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15">
           <path d="M6 6l12 12M18 6L6 18" />
@@ -80,8 +219,6 @@ const renderedHtml = computed(() => md.render(props.note?.content || ''))
 <style scoped>
 .reader-modal {
   position: relative;
-  display: flex;
-  flex-direction: column;
   width: min(1440px, 100%);
   height: min(94vh, 980px);
   background: #fff;
@@ -92,17 +229,221 @@ const renderedHtml = computed(() => md.render(props.note?.content || ''))
   font-family: var(--sans);
   -webkit-font-smoothing: antialiased;
 }
-.reader-body {
+.reader-main {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  height: 100%;
+}
+
+/* ---------- 侧栏 ---------- */
+.reader-side {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px 12px;
+  border-right: 1px solid #eaecef;
+  overflow: hidden;
+  font-family: var(--sans);
+  transition: width 0.3s ease, padding 0.3s ease, border-right-color 0.3s ease;
+}
+.side-tabs {
+  display: flex;
+  gap: 2px;
+  padding: 4px 4px 0;
+  flex-shrink: 0;
+  border-bottom: 1px solid #eaecef;
+}
+.side-tab {
+  flex: 1;
+  padding: 7px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #57606a;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px 6px 0 0;
+  cursor: pointer;
+}
+.side-tab:hover {
+  background: #f6f8fa;
+  color: #1f2328;
+}
+.side-tab.active {
+  color: #1f2328;
+  border-bottom-color: #1f2328;
+}
+.outline-tree {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 10px 6px 12px 4px;
+}
+.file-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 4px 12px;
+}
+.ol-node.collapsed .ol-children {
+  display: none;
+}
+.ol-row {
+  display: flex;
+  align-items: center;
+}
+.ol-children .ol-row {
+  padding-left: 24px;
+}
+.ol-children .ol-children .ol-row {
+  padding-left: 48px;
+}
+.ol-chev {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 5px;
+  color: #8c959f;
+  cursor: pointer;
+}
+.ol-chev:hover {
+  color: #1f2328;
+  background: #f6f8fa;
+}
+.ol-chev.empty {
+  pointer-events: none;
+}
+.ol-chev svg {
+  transition: transform 0.18s ease;
+}
+.ol-node.collapsed > .ol-row .ol-chev svg {
+  transform: rotate(-90deg);
+}
+.ol-item {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: #57606a;
+  text-align: left;
+  cursor: pointer;
+}
+.ol-row:hover .ol-item {
+  background: #f6f8fa;
+  color: #1f2328;
+}
+.ol-item.h1 {
+  font-weight: 700;
+  color: #1f2328;
+}
+.ol-item.h2 {
+  font-weight: 600;
+  color: #1f2328;
+}
+
+/* ---------- 侧栏开关 ---------- */
+.sidebar-toggle {
+  position: absolute;
+  left: calc(240px - 13px);
+  bottom: 16px;
+  z-index: 20;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid #d0d7de;
+  background: #fff;
+  color: #57606a;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: left 0.3s ease;
+}
+.sidebar-toggle::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #eceef0;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.sidebar-toggle:hover::before {
+  opacity: 1;
+}
+.sidebar-toggle:hover .st-icon {
+  color: #1f2328;
+}
+.sidebar-toggle .st-icon {
+  position: relative;
+  z-index: 1;
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.3s ease;
+}
+.st-label {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #1f2328;
+  color: #fff;
+  font-size: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+}
+.sidebar-toggle:hover .st-label {
+  opacity: 1;
+}
+.reader-modal.sidebar-collapsed .sidebar-toggle {
+  left: 14px;
+}
+.reader-modal.sidebar-collapsed .sidebar-toggle .st-icon {
+  transform: rotate(180deg);
+}
+
+/* ---------- 收起态 ---------- */
+.reader-modal.sidebar-collapsed .reader-side {
+  width: 0;
+  padding-left: 0;
+  padding-right: 0;
+  border-right-color: transparent;
+}
+.reader-modal.sidebar-collapsed .reader-body {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 8px 56px 110px;
+}
+
+/* ---------- 正文 ---------- */
+.reader-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
   padding: 8px 44px 64px;
+  transition: padding 0.3s ease;
 }
 .reader-close {
   position: absolute;
   top: 12px;
   right: 28px;
-  z-index: 10;
+  z-index: 30;
   display: grid;
   place-items: center;
   width: 32px;
@@ -251,17 +592,25 @@ const renderedHtml = computed(() => md.render(props.note?.content || ''))
   color: #6a737d;
   text-decoration: line-through;
 }
-.reader-body::-webkit-scrollbar {
+.reader-body::-webkit-scrollbar,
+.outline-tree::-webkit-scrollbar,
+.file-panel::-webkit-scrollbar {
   width: 8px;
 }
-.reader-body::-webkit-scrollbar-track {
+.reader-body::-webkit-scrollbar-track,
+.outline-tree::-webkit-scrollbar-track,
+.file-panel::-webkit-scrollbar-track {
   background: transparent;
 }
-.reader-body::-webkit-scrollbar-thumb {
+.reader-body::-webkit-scrollbar-thumb,
+.outline-tree::-webkit-scrollbar-thumb,
+.file-panel::-webkit-scrollbar-thumb {
   background: #d0d7de;
   border-radius: 999px;
 }
-.reader-body::-webkit-scrollbar-thumb:hover {
+.reader-body::-webkit-scrollbar-thumb:hover,
+.outline-tree::-webkit-scrollbar-thumb:hover,
+.file-panel::-webkit-scrollbar-thumb:hover {
   background: #b6bcc4;
 }
 </style>
