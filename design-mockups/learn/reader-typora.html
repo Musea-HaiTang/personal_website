@@ -1,0 +1,717 @@
+<!doctype html>
+<!--
+  笔记阅读弹窗样式原型（PROTOTYPE，可丢弃）
+  问题：把阅读弹窗改成 Typora 默认 Github 主题（白底/无衬线/蓝链/浅灰代码块/语法高亮/任务列表）后，
+        哪种"结构"在宽屏下读起来最舒服？
+  三个变体，?variant=a|b|c 切换（页面底部悬浮条可切换）：
+  - A 经典模态：保留现有弹窗外壳（标题 + 元信息条 + 右上角删除/关闭），弹窗加宽到 1280px，内容区白底 Github 排版
+  - B 全窗沉浸：去掉弹窗外壳，标题直接是正文 h1，顶部极简悬浮工具条，阅读区最大化（全窗 + 1200px 内容宽）
+  - C 大纲侧栏：弹窗加宽到 1440px，左侧标题大纲（点击跳转）+ 右侧 Github 排版正文，宽屏空间用得更满
+  共同点：Typora Github 排版体系、代码语法高亮、任务列表、宽版阅读区（显示区域比现在 1024px 弹窗更大）。
+
+  已定稿方向（2026-08-19 用户迭代定稿）：
+  - 选 C：大纲可点击跳转；大纲可收起变沉浸阅读（窗口尺寸不变，?variant=c#collapsed 直接查看收起态）；
+  - 笔记标题显示在正文上方；
+  - 侧栏顶部为「大纲 / 文件」双页签导航栏：大纲树可展开/收缩并点击跳转；文件页签列出同分类笔记，点击直接切换预览；
+  - 大纲第一项为笔记标题（h1），无子级的标题不显示小于号；
+  - 大纲字体与正文一致（无衬线）；hover 高亮铺满整行；子级行整体缩进（箭头随缩进）；大纲树与顶部导航留出间距；
+  - 无顶部工具条：关闭键直接浮动在弹窗右上角（左移避开滚动条）；
+  - 侧边栏开关为同一枚 26px 圆形按钮：收起时在大纲/正文边界处显示 ‹，展开时在左下角显示 ›（图标旋转 180°），hover 整圆浅灰并显示「展示/隐藏侧边栏」；
+  - 收起大纲时窗口尺寸不变（与展开态一致），仅隐藏侧栏、正文加宽；收起/展开有 0.3s 平滑过渡；
+  - 正文顶部不留空，笔记标题尽量顶格；
+  - 大纲树可展开/收缩（大标题左侧小于号）；
+  - 笔记内部不保留删除按钮（各变体只留关闭）。
+  纯静态演示，无持久化；原型选择器不会出现在正式版。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>笔记阅读弹窗原型 · Typora Github（PROTOTYPE）</title>
+<style>
+  :root {
+    --gh-bg: #ffffff;
+    --gh-text: #24292e;
+    --gh-muted: #6a737d;
+    --gh-border: #d0d7de;
+    --gh-soft: #f6f8fa;
+    --gh-link: #0366d6;
+    --gh-code-bg: rgba(27, 31, 35, .06);
+    --sans: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: var(--sans);
+    background: #d8d4cd;
+    color: var(--gh-text);
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; border: 0; background: none; cursor: pointer; color: inherit; }
+  a { color: inherit; }
+
+  /* ---------- 通用：Markdown 正文（Typora Github 排版体系） ---------- */
+  .md {
+    color: var(--gh-text);
+    font-size: 16px;
+    line-height: 1.75;
+    overflow-wrap: break-word;
+  }
+  .md h1, .md h2, .md h3, .md h4 {
+    font-weight: 600;
+    line-height: 1.3;
+    margin: 1.4em 0 .6em;
+  }
+  .md h1 { font-size: 1.9em; padding-bottom: .3em; border-bottom: 1px solid #eaecef; }
+  .md h2 { font-size: 1.5em; padding-bottom: .3em; border-bottom: 1px solid #eaecef; }
+  .md h3 { font-size: 1.25em; }
+  .md h4 { font-size: 1em; }
+  .md p { margin: .7em 0; }
+  .md ul, .md ol { margin: .7em 0; padding-left: 1.6em; }
+  .md li { margin: .25em 0; }
+  .md a { color: var(--gh-link); text-decoration: none; }
+  .md a:hover { text-decoration: underline; }
+  .md blockquote {
+    margin: .9em 0;
+    padding: .15em 1em;
+    border-left: 4px solid #dfe2e5;
+    color: var(--gh-muted);
+  }
+  .md code {
+    padding: .15em .4em;
+    border-radius: 6px;
+    background: var(--gh-code-bg);
+    font-family: var(--mono);
+    font-size: .88em;
+  }
+  .md pre {
+    margin: .9em 0;
+    padding: 14px 16px;
+    background: var(--gh-soft);
+    border: 1px solid #eaecef;
+    border-radius: 8px;
+    overflow: auto;
+  }
+  .md pre code { background: transparent; padding: 0; font-size: 13.5px; line-height: 1.6; }
+  .md table { width: 100%; margin: .9em 0; border-collapse: collapse; font-size: .95em; }
+  .md th, .md td { border: 1px solid var(--gh-border); padding: 7px 12px; text-align: left; }
+  .md th { background: var(--gh-soft); font-weight: 600; }
+  .md hr { margin: 1.6em 0; border: 0; border-top: 1px solid #e1e4e8; }
+  .md img { max-width: 100%; border-radius: 8px; }
+  .md .task-list-item { list-style: none; margin-left: -1.4em; }
+  .md .task-list-item input { margin-right: .45em; transform: translateY(1px); }
+  .md .task-done { color: var(--gh-muted); text-decoration: line-through; }
+  .md .meta-line { color: var(--gh-muted); font-size: 13px; margin: 6px 0 0; }
+
+  /* hljs github 浅色主题（子集） */
+  .hljs-comment { color: #6a737d; font-style: italic; }
+  .hljs-keyword, .hljs-selector-tag { color: #d73a49; }
+  .hljs-string { color: #032f62; }
+  .hljs-number, .hljs-literal { color: #005cc5; }
+  .hljs-title, .hljs-title.function_ { color: #6f42c1; }
+  .hljs-attr, .hljs-attribute { color: #005cc5; }
+  .hljs-built_in { color: #e36209; }
+
+  /* ---------- 图标按钮 ---------- */
+  .icon-btn {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--gh-border);
+    background: #fff;
+    color: #57606a;
+  }
+  .icon-btn:hover { border-color: var(--gh-link); color: var(--gh-link); }
+  .icon-btn.danger:hover { border-color: #cf222e; color: #cf222e; }
+
+  /* ---------- 变体 A：经典模态 ---------- */
+  .va { display: none; align-items: center; justify-content: center; height: 100vh; padding: 22px; }
+  body[data-v="a"] .va { display: flex; }
+  .modal-a {
+    display: flex;
+    flex-direction: column;
+    width: min(1280px, 100%);
+    height: min(92vh, 920px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .24);
+    overflow: hidden;
+  }
+  .mhead {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 20px 30px 0;
+  }
+  .mtitle { font-size: 22px; font-weight: 700; line-height: 1.35; }
+  .mactions { display: flex; gap: 6px; flex-shrink: 0; }
+  .mmeta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 30px 14px;
+    border-bottom: 1px solid #eaecef;
+    font-size: 12.5px;
+    color: var(--gh-muted);
+  }
+  .tag {
+    padding: 1px 10px;
+    border: 1px solid var(--gh-border);
+    border-radius: 999px;
+    background: var(--gh-soft);
+    color: #57606a;
+    font-size: 11.5px;
+  }
+  .a-body { flex: 1; min-height: 0; overflow-y: auto; padding: 26px 44px 64px; }
+
+  /* ---------- 变体 B：全窗沉浸 ---------- */
+  .vb { display: none; height: 100vh; overflow-y: auto; background: #fff; }
+  body[data-v="b"] .vb { display: block; }
+  .vb-inner { max-width: 1200px; margin: 0 auto; padding: 56px 56px 110px; }
+  .vb-bar { position: fixed; top: 18px; right: 24px; z-index: 5; display: flex; gap: 6px; }
+  .vb-bar .icon-btn { box-shadow: 0 1px 4px rgba(0, 0, 0, .14); }
+
+  /* ---------- 变体 C：大纲侧栏 ---------- */
+  .vc { display: none; align-items: center; justify-content: center; height: 100vh; padding: 20px; }
+  body[data-v="c"] .vc { display: flex; }
+  .modal-c {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: min(1440px, 100%);
+    height: min(94vh, 980px);
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .24);
+    overflow: hidden;
+  }
+  .c-main { flex: 1; min-height: 0; display: flex; position: relative; }
+  .c-outline {
+    width: 240px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 8px 12px;
+    border-right: 1px solid #eaecef;
+    overflow: hidden;
+    transition: width .3s ease, padding .3s ease, border-right-color .3s ease;
+    font-family: var(--sans);
+  }
+  .modal-c.collapsed .c-outline {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+    border-right-color: transparent;
+  }
+  .c-outline-head {
+    display: flex;
+    gap: 2px;
+    padding: 4px 4px 0;
+    flex-shrink: 0;
+    border-bottom: 1px solid #eaecef;
+  }
+  .ol-tab {
+    flex: 1;
+    padding: 7px 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #57606a;
+    border-bottom: 2px solid transparent;
+    border-radius: 6px 6px 0 0;
+  }
+  .ol-tab:hover { background: var(--gh-soft); color: var(--gh-text); }
+  .ol-tab.active { color: #1f2328; border-bottom-color: #1f2328; }
+  .ol-item {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.45;
+    color: #57606a;
+    text-decoration: none;
+  }
+  .ol-row:hover .ol-item { background: var(--gh-soft); color: var(--gh-text); }
+  .ol-row.force-hover .ol-item { background: var(--gh-soft); color: var(--gh-text); }
+  .ol-item.h1 { font-weight: 700; color: var(--gh-text); }
+  .ol-item.h2 { font-weight: 600; color: var(--gh-text); }
+  .ol-children .ol-row { padding-left: 24px; }
+  .ol-children .ol-children .ol-row { padding-left: 48px; }
+  .c-body {
+    flex: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 8px 44px 64px;
+    transition: padding .3s ease;
+  }
+
+  /* 关闭键：浮动在弹窗右上角，不单独占一行 */
+  .c-close { position: absolute; top: 12px; right: 28px; z-index: 30; box-shadow: 0 1px 4px rgba(0, 0, 0, .14); }
+
+  /* 文件面板（「文件」页签）：同分类笔记列表，点击直接切换 */
+  .fs-panel {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+    gap: 1px;
+    padding: 8px 4px 12px;
+  }
+  .c-outline.tab-files .ol-tree { display: none; }
+  .c-outline.tab-files .fs-panel { display: flex; }
+  .fs-caption {
+    padding: 2px 10px 6px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--gh-muted);
+  }
+  .fs-item {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    text-align: left;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--gh-text);
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .fs-item:hover { background: var(--gh-soft); }
+  .fs-item.active { background: var(--gh-soft); color: var(--gh-link); font-weight: 600; }
+
+  /* 大纲树（可展开/收起） */
+  .ol-tree { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 1px; padding: 10px 6px 12px 4px; }
+  .ol-row { display: flex; align-items: center; }
+  .ol-chev {
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 24px;
+    flex-shrink: 0;
+    border-radius: 5px;
+    color: #8c959f;
+  }
+  .ol-chev:hover { color: var(--gh-text); background: var(--gh-soft); }
+  .ol-chev svg { transition: transform .18s ease; }
+  .ol-node.collapsed .ol-chev svg { transform: rotate(-90deg); }
+  .ol-node.collapsed .ol-children { display: none; }
+  .ol-chev.empty { pointer-events: none; }
+
+  /* 侧边栏开关：26px 圆形，‹/› 随收起状态旋转 180°，hover 整圆浅灰 */
+  .sidebar-toggle {
+    position: absolute;
+    left: calc(240px - 13px);
+    bottom: 16px;
+    z-index: 25;
+    display: grid;
+    place-items: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 1px solid var(--gh-border);
+    background: #fff;
+    color: #57606a;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+    cursor: pointer;
+    transition: left .3s ease;
+  }
+  .sidebar-toggle::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: #eceef0;
+    opacity: 0;
+    transition: opacity .18s ease;
+  }
+  .sidebar-toggle:hover::before { opacity: 1; }
+  .sidebar-toggle:hover .st-icon { color: #1f2328; }
+  .sidebar-toggle .st-icon {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    font-size: 18px;
+    line-height: 1;
+    transition: transform .3s ease;
+  }
+  /* 截图/调试用：?hover=1 强制显示 hover 态（正式版不出现） */
+  .sidebar-toggle.force-hover::before { opacity: 1; }
+  .sidebar-toggle.force-hover .st-icon { color: #1f2328; }
+  .sidebar-toggle.force-hover .st-label { opacity: 1; }
+  .st-label {
+    position: absolute;
+    left: calc(100% + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    white-space: nowrap;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: #1f2328;
+    color: #fff;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .18s ease;
+  }
+  .sidebar-toggle:hover .st-label { opacity: 1; }
+  .modal-c.collapsed .sidebar-toggle { left: 14px; }
+  .modal-c.collapsed .sidebar-toggle .st-icon { transform: rotate(180deg); }
+  .modal-c.collapsed .c-body { max-width: 1200px; margin: 0 auto; padding: 8px 56px 110px; }
+
+  /* ---------- 原型切换条（正式版不出现） ---------- */
+  .switcher {
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    background: #1f2328;
+    color: #fff;
+    font-size: 13px;
+    box-shadow: 0 6px 22px rgba(0, 0, 0, .35);
+  }
+  .switcher .hint { padding-left: 6px; font-size: 11px; color: rgba(255, 255, 255, .65); }
+  .switcher button {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .14);
+    font-size: 16px;
+    line-height: 1;
+  }
+  .switcher button:hover { background: rgba(255, 255, 255, .28); }
+</style>
+</head>
+<body data-v="a">
+
+  <!-- 变体 A：经典模态 -->
+  <section class="va">
+    <div class="modal-a">
+      <header class="mhead">
+        <div class="mtitle">FastAPI 与 Vue 对接笔记</div>
+        <div class="mactions">
+          <button class="icon-btn" title="关闭">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+      </header>
+      <div class="mmeta">
+        <span>学习 · 后端</span>
+        <span>·</span>
+        <span>2026-08-18</span>
+        <span class="tag">FastAPI</span>
+        <span class="tag">Vue</span>
+      </div>
+      <div class="a-body md" id="body-a"></div>
+    </div>
+  </section>
+
+  <!-- 变体 B：全窗沉浸 -->
+  <section class="vb">
+    <div class="vb-bar">
+      <button class="icon-btn" title="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="vb-inner md" id="body-b"></div>
+  </section>
+
+  <!-- 变体 C：大纲侧栏（定稿） -->
+  <section class="vc">
+    <div class="modal-c" id="modal-c">
+      <div class="c-main">
+        <aside class="c-outline">
+          <div class="c-outline-head">
+            <button class="ol-tab active" data-tab="outline">大纲</button>
+            <button class="ol-tab" data-tab="files">文件</button>
+          </div>
+          <div class="ol-tree" id="ol-tree"></div>
+          <div class="fs-panel" id="fs-panel"></div>
+        </aside>
+        <div class="c-body md" id="body-c"></div>
+        <button class="sidebar-toggle" id="sidebar-toggle" title="展示/隐藏侧边栏">
+          <span class="st-icon">‹</span>
+          <span class="st-label">展示/隐藏侧边栏</span>
+        </button>
+      </div>
+      <button class="icon-btn c-close" title="关闭">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <!-- 原型切换条 -->
+  <div class="switcher" role="navigation" aria-label="原型变体切换">
+    <span class="hint">原型</span>
+    <button id="prev" aria-label="上一个变体">‹</button>
+    <span id="label">A · 经典模态</span>
+    <button id="next" aria-label="下一个变体">›</button>
+  </div>
+
+<script>
+  const SECTIONS = `
+    <p>个人网站前后端对接中踩过的坑：CORS、请求体校验、文件上传与 Markdown 存储。先看最常用的启动命令：</p>
+    <h2 id="s1">1. 快速开始</h2>
+    <h3 id="s1-1">1.1 启动后端</h3>
+    <pre><code class="hljs"><span class="hljs-comment"># 本地开发，开启热重载</span>
+<span class="hljs-built_in">pip</span> install -r requirements.txt
+uvicorn app.main:app --reload</code></pre>
+    <h3 id="s1-2">1.2 关键配置</h3>
+    <pre><code class="hljs"><span class="hljs-keyword">from</span> fastapi <span class="hljs-keyword">import</span> FastAPI
+<span class="hljs-keyword">from</span> fastapi.middleware.cors <span class="hljs-keyword">import</span> CORSMiddleware
+
+app = FastAPI(title=<span class="hljs-string">"personal-website"</span>)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[<span class="hljs-string">"http://localhost:5173"</span>],
+    allow_methods=[<span class="hljs-string">"*"</span>],
+)</code></pre>
+    <h2 id="s2">2. 常见坑</h2>
+    <ul class="contains-task-list">
+      <li class="task-list-item"><input type="checkbox" disabled checked><span class="task-done">CORS 只允许本地开发端口，上线前要换成域名</span></li>
+      <li class="task-list-item"><input type="checkbox" disabled checked><span class="task-done">Pydantic v2 用 <code>model_dump()</code> 而不是 <code>dict()</code></span></li>
+      <li class="task-list-item"><input type="checkbox" disabled><span>图片上传后的访问路径还没定</span></li>
+      <li class="task-list-item"><input type="checkbox" disabled><span>导出功能待做</span></li>
+    </ul>
+    <blockquote><p>小提示：<code>--reload</code> 只适合开发环境；生产环境用 uvicorn 多 worker 启动。</p></blockquote>
+    <h2 id="s3">3. 接口速查表</h2>
+    <table>
+      <thead><tr><th>方法</th><th>路径</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>GET</td><td><code>/api/notes</code></td><td>笔记列表</td></tr>
+        <tr><td>POST</td><td><code>/api/notes</code></td><td>导入新笔记</td></tr>
+        <tr><td>DELETE</td><td><code>/api/notes/{id}</code></td><td>删除笔记</td></tr>
+      </tbody>
+    </table>
+    <hr>
+    <h2 id="s4">4. 链接</h2>
+    <p>参考 <a href="#">FastAPI 官方文档</a> 和 <a href="#">Vue 组合式 API</a>。代码里的中文注释直接写在 Markdown 里即可。</p>
+  `;
+  const BODY_AC = SECTIONS;
+  const BODY_B = `<h1>FastAPI 与 Vue 对接笔记</h1>
+    <p class="meta-line">学习 · 后端 / 2026-08-18 / #FastAPI #Vue</p>` + SECTIONS;
+
+  document.getElementById('body-a').innerHTML = BODY_AC;
+  document.getElementById('body-b').innerHTML = BODY_B;
+
+  // ---------- 变体 C：标题在正文上方 + 大纲树 + 同分类文件切换 ----------
+  const CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M6 9l6 6 6-6"/></svg>';
+  let currentId = 'n1';
+
+  const NOTES = [
+    {
+      id: 'n1',
+      title: 'FastAPI 与 Vue 对接笔记',
+      folder: '学习 · 后端',
+      date: '2026-08-18',
+      tags: '#FastAPI #Vue',
+      html: `<h1>FastAPI 与 Vue 对接笔记</h1>
+    <p class="meta-line">学习 · 后端 / 2026-08-18 / #FastAPI #Vue</p>` + SECTIONS,
+      outline: [
+        { id: 's1', text: '1. 快速开始', children: [{ id: 's1-1', text: '1.1 启动后端' }, { id: 's1-2', text: '1.2 关键配置' }] },
+        { id: 's2', text: '2. 常见坑', children: [] },
+        { id: 's3', text: '3. 接口速查表', children: [] },
+        { id: 's4', text: '4. 链接', children: [] }
+      ]
+    },
+    {
+      id: 'n2',
+      title: 'SQLAlchemy 2.0 备忘',
+      folder: '学习 · 后端',
+      date: '2026-08-17',
+      tags: '#SQLAlchemy #ORM',
+      html: `<h1>SQLAlchemy 2.0 备忘</h1>
+    <p class="meta-line">学习 · 后端 / 2026-08-17 / #SQLAlchemy #ORM</p>
+    <p>ORM 2.0 统一了查询写法，<code>session.query()</code> 已被 <code>select()</code> 取代。</p>
+    <h2 id="t1">1. 声明式模型</h2>
+    <pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy.orm <span class="hljs-keyword">import</span> DeclarativeBase, Mapped, mapped_column
+
+<span class="hljs-keyword">class</span> <span class="hljs-title">Base</span>(DeclarativeBase):
+    <span class="hljs-keyword">pass</span>
+
+<span class="hljs-keyword">class</span> <span class="hljs-title">Note</span>(Base):
+    __tablename__ = <span class="hljs-string">"notes"</span>
+    id: Mapped[<span class="hljs-built_in">int</span>] = mapped_column(primary_key=<span class="hljs-literal">True</span>)</code></pre>
+    <h2 id="t2">2. 查询写法</h2>
+    <pre><code class="hljs"><span class="hljs-keyword">from</span> sqlalchemy <span class="hljs-keyword">import</span> select
+
+notes = db.execute(select(Note).where(Note.folder == <span class="hljs-string">"后端"</span>)).scalars().all()</code></pre>
+    <blockquote><p>要点：2.0 的 <code>Session</code> 用法与 1.x 差异较大，注意 <code>scalars()</code>。</p></blockquote>`,
+      outline: [
+        { id: 't1', text: '1. 声明式模型', children: [] },
+        { id: 't2', text: '2. 查询写法', children: [] }
+      ]
+    },
+    {
+      id: 'n3',
+      title: 'Docker 常用命令',
+      folder: '学习 · 后端',
+      date: '2026-08-16',
+      tags: '#Docker #部署',
+      html: `<h1>Docker 常用命令</h1>
+    <p class="meta-line">学习 · 后端 / 2026-08-16 / #Docker #部署</p>
+    <p>本机用 <code>cmd /c docker ...</code> 执行，避免 PowerShell 兼容问题。</p>
+    <h2 id="d1">1. 构建与启动</h2>
+    <pre><code class="hljs"><span class="hljs-built_in">docker</span> compose up -d --build
+<span class="hljs-built_in">docker</span> compose ps</code></pre>
+    <h2 id="d2">2. 查看与清理</h2>
+    <pre><code class="hljs"><span class="hljs-built_in">docker</span> logs -f app
+<span class="hljs-built_in">docker</span> system prune -f</code></pre>
+    <blockquote><p>镜像源在国内网络建议配置 registry-mirrors。</p></blockquote>`,
+      outline: [
+        { id: 'd1', text: '1. 构建与启动', children: [] },
+        { id: 'd2', text: '2. 查看与清理', children: [] }
+      ]
+    }
+  ];
+
+  function appendOutlineNode(container, h, cls) {
+    const hasChildren = h.children && h.children.length > 0;
+    const node = document.createElement('div');
+    node.className = 'ol-node';
+    const row = document.createElement('div');
+    row.className = 'ol-row';
+    const chev = document.createElement('button');
+    chev.className = 'ol-chev' + (hasChildren ? '' : ' empty');
+    if (hasChildren) chev.innerHTML = CHEV_SVG;
+    chev.title = hasChildren ? '展开/收起' : '';
+    const a = document.createElement('a');
+    a.className = 'ol-item ' + cls;
+    a.href = '#' + h.id;
+    a.textContent = h.text;
+    row.append(chev, a);
+    node.append(row);
+    if (hasChildren) {
+      const group = document.createElement('div');
+      group.className = 'ol-children';
+      const childCls = cls === 'h1' ? 'h2' : 'h3';
+      h.children.forEach((c) => appendOutlineNode(group, c, childCls));
+      node.append(group);
+    }
+    container.append(node);
+  }
+
+  function renderOutline(note) {
+    const tree = document.getElementById('ol-tree');
+    tree.innerHTML = '';
+    appendOutlineNode(tree, { id: 'note-title', text: note.title, children: note.outline }, 'h1');
+  }
+
+  function renderFilePanel() {
+    const panel = document.getElementById('fs-panel');
+    const folder = NOTES.find((n) => n.id === currentId).folder;
+    panel.innerHTML = '';
+    const caption = document.createElement('div');
+    caption.className = 'fs-caption';
+    caption.textContent = folder;
+    panel.append(caption);
+    NOTES.filter((n) => n.folder === folder).forEach((n) => {
+      const btn = document.createElement('button');
+      btn.className = 'fs-item' + (n.id === currentId ? ' active' : '');
+      btn.textContent = n.title;
+      btn.addEventListener('click', () => renderNote(n.id));
+      panel.append(btn);
+    });
+  }
+
+  function renderNote(id) {
+    const note = NOTES.find((n) => n.id === id);
+    if (!note) return;
+    currentId = id;
+    document.getElementById('body-c').innerHTML = note.html;
+    const titleEl = document.querySelector('#body-c h1');
+    if (titleEl) titleEl.id = 'note-title';
+    renderOutline(note);
+    renderFilePanel();
+  }
+
+  // 大纲：点击标题跳转；点击左侧小于号展开/收起
+  document.getElementById('ol-tree').addEventListener('click', (e) => {
+    const chev = e.target.closest('.ol-chev');
+    if (chev && !chev.classList.contains('empty')) {
+      chev.closest('.ol-node').classList.toggle('collapsed');
+      return;
+    }
+    const item = e.target.closest('.ol-item');
+    if (item) {
+      e.preventDefault();
+      const el = document.getElementById(item.getAttribute('href').slice(1));
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  });
+
+  // 侧栏顶部「大纲 / 文件」页签
+  const outlineAside = document.querySelector('.c-outline');
+  document.querySelectorAll('.ol-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.ol-tab').forEach((t) => t.classList.toggle('active', t === tab));
+      outlineAside.classList.toggle('tab-files', tab.dataset.tab === 'files');
+    });
+  });
+
+  // 侧边栏收起/展开（同一枚圆形按钮，‹/› 旋转切换，平滑过渡）
+  const modalC = document.getElementById('modal-c');
+  document.getElementById('sidebar-toggle').addEventListener('click', () => {
+    modalC.classList.toggle('collapsed');
+  });
+
+  const VARIANTS = [
+    { key: 'a', name: '经典模态' },
+    { key: 'b', name: '全窗沉浸' },
+    { key: 'c', name: '大纲侧栏' }
+  ];
+
+  function idxOf(key) {
+    const i = VARIANTS.findIndex((v) => v.key === key);
+    return i === -1 ? 0 : i;
+  }
+  function apply(i) {
+    const v = VARIANTS[i];
+    document.body.dataset.v = v.key;
+    document.getElementById('label').textContent = v.key.toUpperCase() + ' · ' + v.name;
+    const url = new URL(location.href);
+    url.searchParams.set('variant', v.key);
+    history.replaceState(null, '', url);
+  }
+  function step(dir) {
+    const i = idxOf(new URLSearchParams(location.search).get('variant'));
+    apply((i + dir + VARIANTS.length) % VARIANTS.length);
+  }
+
+  document.getElementById('prev').addEventListener('click', () => step(-1));
+  document.getElementById('next').addEventListener('click', () => step(1));
+  window.addEventListener('keydown', (e) => {
+    const el = document.activeElement;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if (e.key === 'ArrowLeft') step(-1);
+    if (e.key === 'ArrowRight') step(1);
+  });
+
+  renderNote('n1');
+  apply(idxOf(new URLSearchParams(location.search).get('variant')));
+  const PARAMS = new URLSearchParams(location.search);
+  if (PARAMS.get('collapsed') === '1' || location.hash === '#collapsed') modalC.classList.add('collapsed');
+  if (PARAMS.get('hover') === '1') {
+    document.getElementById('sidebar-toggle').classList.add('force-hover');
+  }
+  if (PARAMS.get('files') === '1') document.querySelector('.ol-tab[data-tab="files"]').click();
+  if (PARAMS.get('olhover') === '1') document.querySelectorAll('.ol-row').forEach((r) => r.classList.add('force-hover'));
+</script>
+</body>
+</html>
