@@ -1,16 +1,57 @@
 <script setup>
 import { computed } from 'vue'
 import MarkdownIt from 'markdown-it'
+import taskLists from 'markdown-it-task-lists'
+import hljs from 'highlight.js/lib/core'
+import 'highlight.js/styles/github.css'
+import bash from 'highlight.js/lib/languages/bash'
+import css from 'highlight.js/lib/languages/css'
+import dockerfile from 'highlight.js/lib/languages/dockerfile'
+import javascript from 'highlight.js/lib/languages/javascript'
+import json from 'highlight.js/lib/languages/json'
+import python from 'highlight.js/lib/languages/python'
+import sql from 'highlight.js/lib/languages/sql'
+import typescript from 'highlight.js/lib/languages/typescript'
+import xml from 'highlight.js/lib/languages/xml'
 
 import BaseModal from '../BaseModal.vue'
 import { fmtDate } from '../../utils/date'
+
+hljs.registerLanguage('bash', bash)
+hljs.registerLanguage('css', css)
+hljs.registerLanguage('dockerfile', dockerfile)
+hljs.registerLanguage('javascript', javascript)
+hljs.registerLanguage('json', json)
+hljs.registerLanguage('python', python)
+hljs.registerLanguage('sql', sql)
+hljs.registerLanguage('typescript', typescript)
+hljs.registerLanguage('xml', xml)
 
 const props = defineProps({
   note: { type: Object, default: null }
 })
 const emit = defineEmits(['close'])
 
-const md = new MarkdownIt({ html: false, linkify: true, breaks: true })
+const md = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true,
+  highlight(str, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return (
+          '<pre><code class="hljs">' +
+          hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+          '</code></pre>'
+        )
+      } catch {
+        /* 回退到转义纯文本 */
+      }
+    }
+    return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + '</code></pre>'
+  }
+})
+md.use(taskLists)
 
 const renderedHtml = computed(() => md.render(props.note?.content || ''))
 </script>
@@ -206,7 +247,7 @@ const renderedHtml = computed(() => md.render(props.note?.content || ''))
   margin-right: 0.45em;
   transform: translateY(1px);
 }
-.markdown-body :deep(.task-done) {
+.markdown-body :deep(li.task-list-item:has(input:checked)) {
   color: #6a737d;
   text-decoration: line-through;
 }
