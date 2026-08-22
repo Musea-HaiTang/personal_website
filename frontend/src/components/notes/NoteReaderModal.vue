@@ -402,11 +402,11 @@ function switchNote(note) {
 .ol-node.collapsed .ol-children {
   display: none;
 }
-  .ol-row {
-    display: flex;
-    align-items: center;
-  }
-  .ol-chev {
+.ol-row {
+  display: flex;
+  align-items: center;
+}
+.ol-chev {
   display: grid;
   place-items: center;
   width: 20px;
@@ -447,6 +447,7 @@ function switchNote(note) {
   color: var(--gh-strong);
 }
 .ol-item.h1 {
+  font-weight: 700;
   color: var(--gh-strong);
 }
 .ol-item.h2 {
@@ -634,16 +635,16 @@ function switchNote(note) {
 .markdown-body :deep(a:hover) {
   text-decoration: underline;
 }
-  .markdown-body :deep(blockquote) {
-    margin: 0.9em 0;
-    padding: 0.3em 1em;
-    border-left: 4px solid var(--gh-blockquote);
-    color: var(--gh-muted-2);
-  }
-  .markdown-body :deep(blockquote p) {
-    margin: 0.3em 0;
-  }
-  .markdown-body :deep(code) {
+.markdown-body :deep(blockquote) {
+  margin: 0.9em 0;
+  padding: 0.3em 1em;
+  border-left: 4px solid var(--gh-blockquote);
+  color: var(--gh-muted-2);
+}
+.markdown-body :deep(blockquote p) {
+  margin: 0.3em 0;
+}
+.markdown-body :deep(code) {
   padding: 0.15em 0.4em;
   border-radius: 6px;
   background: var(--gh-code-inline);
