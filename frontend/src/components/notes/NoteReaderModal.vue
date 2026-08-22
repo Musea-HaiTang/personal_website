@@ -67,7 +67,9 @@ const md = new MarkdownIt({
 })
 md.use(taskLists)
 
-const renderedHtml = computed(() => md.render(current.value?.content || ''))
+const renderedHtml = computed(() =>
+  md.render(String(current.value?.content || '').replace(/\r\n/g, '\n').replace(/\r/g, ''))
+)
 
 /* ---------- 侧栏状态 ---------- */
 const activeTab = ref('outline')
@@ -90,19 +92,18 @@ function slugify(text) {
 function buildOutline() {
   const rootEl = bodyEl.value
   if (!rootEl) return
-  // h1 由 note-title 承担：正文 h1 与标题重复则去掉，其余降级为 h2 纳入大纲
-  const contentH1 = [...rootEl.querySelectorAll('h1:not(.note-title)')]
-  if (contentH1.length && contentH1[0].textContent.trim() === (current.value?.title || '').trim()) {
-    contentH1.shift().remove()
-  }
-  contentH1.forEach((h1) => {
-    const h2 = document.createElement('h2')
-    h2.innerHTML = h1.innerHTML
-    h1.replaceWith(h2)
-  })
+  const title = (current.value?.title || '').trim()
+
+  // 正文 h1 若与标题重复则去掉，避免大纲里出现两个“书名”
+  const duplicateTitle = [...rootEl.querySelectorAll('h1:not(.note-title)')].find(
+    (h) => h.textContent.trim() === title
+  )
+  if (duplicateTitle) duplicateTitle.remove()
+
+  // 收集全部正文标题（h1~h6），先按原始级别生成大纲，再统一降级正文 h1
+  const headingEls = [...rootEl.querySelectorAll('h1:not(.note-title), h2, h3, h4, h5, h6')]
   const seen = new Set(['note-title'])
-  const headings = [...rootEl.querySelectorAll('h2, h3')]
-  headings.forEach((h) => {
+  headingEls.forEach((h) => {
     const base = slugify(h.textContent)
     let id = base
     let i = 2
@@ -110,21 +111,27 @@ function buildOutline() {
     seen.add(id)
     h.id = id
   })
-  const root = { id: 'note-title', text: current.value?.title || '无标题', children: [] }
-  let currentH2 = null
-  headings.forEach((h) => {
-    const item = { id: h.id, text: h.textContent.trim(), children: [] }
-    if (h.tagName === 'H2') {
-      root.children.push(item)
-      currentH2 = item
-    } else if (currentH2) {
-      currentH2.children.push(item)
-    } else {
-      root.children.push(item)
-    }
+
+  // 用栈按标题级别构筑层级树：h1 为顶层，h2 归属当前 h1，h3 归属当前 h2，依此类推
+  const root = { id: 'note-title', text: title || '无标题', children: [] }
+  const stack = [{ node: root, level: 0 }]
+  headingEls.forEach((h) => {
+    const level = Number(h.tagName[1]) // 'H1' -> 1 ... 'H6' -> 6
+    const item = { id: h.id, text: h.textContent.trim(), children: [], level }
+    while (stack.length > 1 && stack[stack.length - 1].level >= level) stack.pop()
+    stack[stack.length - 1].node.children.push(item)
+    stack.push({ node: item, level })
   })
   outlineRoot.value = root
   nodeCollapsed.value = {}
+
+  // 正文 h1（章节）降级为 h2，与 note-title 区分；保留 id 以便大纲跳转
+  rootEl.querySelectorAll('h1:not(.note-title)').forEach((h1) => {
+    const h2 = document.createElement('h2')
+    h2.id = h1.id
+    h2.innerHTML = h1.innerHTML
+    h1.replaceWith(h2)
+  })
 }
 
 watch(
@@ -136,9 +143,26 @@ watch(
   { immediate: true }
 )
 
-function toggleNode(node) {
-  nodeCollapsed.value = { ...nodeCollapsed.value, [node.id]: !nodeCollapsed.value[node.id] }
+function toggleNode(id) {
+  nodeCollapsed.value = { ...nodeCollapsed.value, [id]: !nodeCollapsed.value[id] }
 }
+
+const outlineItems = computed(() => {
+  const items = []
+  const walk = (node) => {
+    const collapsed = !!nodeCollapsed.value[node.id]
+    items.push({
+      id: node.id,
+      text: node.text,
+      level: node.level,
+      hasChildren: node.children.length > 0,
+      collapsed
+    })
+    if (!collapsed) node.children.forEach(walk)
+  }
+  outlineRoot.value?.children.forEach(walk)
+  return items
+})
 
 function jumpTo(id) {
   const el = document.getElementById(id)
@@ -181,7 +205,7 @@ function switchNote(note) {
                   v-if="outlineRoot.children.length"
                   class="ol-chev"
                   title="展开/收起"
-                  @click="toggleNode(outlineRoot)"
+                  @click="toggleNode('note-title')"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
                     <path d="M6 9l6 6 6-6" />
@@ -192,27 +216,21 @@ function switchNote(note) {
               </div>
               <div v-if="!nodeCollapsed['note-title']" class="ol-children">
                 <div
-                  v-for="h2 in outlineRoot.children"
-                  :key="h2.id"
+                  v-for="item in outlineItems"
+                  :key="item.id"
                   class="ol-node"
-                  :class="{ collapsed: nodeCollapsed[h2.id] }"
+                  :class="{ collapsed: item.collapsed }"
                 >
-                  <div class="ol-row">
-                    <button v-if="h2.children.length" class="ol-chev" title="展开/收起" @click="toggleNode(h2)">
+                  <div class="ol-row" :style="{ paddingLeft: (item.level - 1) * 14 + 'px' }">
+                    <button v-if="item.hasChildren" class="ol-chev" title="展开/收起" @click="toggleNode(item.id)">
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
                         <path d="M6 9l6 6 6-6" />
                       </svg>
                     </button>
                     <span v-else class="ol-chev empty"></span>
-                    <button class="ol-item h2" @click="jumpTo(h2.id)">{{ h2.text }}</button>
-                  </div>
-                  <div v-if="h2.children.length && !nodeCollapsed[h2.id]" class="ol-children">
-                    <div v-for="h3 in h2.children" :key="h3.id" class="ol-node">
-                      <div class="ol-row">
-                        <span class="ol-chev empty"></span>
-                        <button class="ol-item h3" @click="jumpTo(h3.id)">{{ h3.text }}</button>
-                      </div>
-                    </div>
+                    <button class="ol-item" :class="item.level === 1 ? 'h2' : 'h3'" @click="jumpTo(item.id)">
+                      {{ item.text }}
+                    </button>
                   </div>
                 </div>
               </div>
@@ -384,17 +402,11 @@ function switchNote(note) {
 .ol-node.collapsed .ol-children {
   display: none;
 }
-.ol-row {
-  display: flex;
-  align-items: center;
-}
-.ol-children .ol-row {
-  padding-left: 24px;
-}
-.ol-children .ol-children .ol-row {
-  padding-left: 48px;
-}
-.ol-chev {
+  .ol-row {
+    display: flex;
+    align-items: center;
+  }
+  .ol-chev {
   display: grid;
   place-items: center;
   width: 20px;
@@ -424,6 +436,7 @@ function switchNote(note) {
   border-radius: 6px;
   font-family: var(--sans);
   font-size: 14px;
+  font-weight: 400;
   line-height: 1.45;
   color: var(--gh-muted);
   text-align: left;
@@ -434,12 +447,15 @@ function switchNote(note) {
   color: var(--gh-strong);
 }
 .ol-item.h1 {
-  font-weight: 700;
   color: var(--gh-strong);
 }
 .ol-item.h2 {
-  font-weight: 600;
-  color: var(--gh-strong);
+  font-size: 13px;
+  color: var(--gh-muted);
+}
+.ol-item.h3 {
+  font-size: 13px;
+  color: var(--gh-muted-2);
 }
 
 /* ---------- 侧栏开关 ---------- */
@@ -618,13 +634,16 @@ function switchNote(note) {
 .markdown-body :deep(a:hover) {
   text-decoration: underline;
 }
-.markdown-body :deep(blockquote) {
-  margin: 0.9em 0;
-  padding: 0.15em 1em;
-  border-left: 4px solid var(--gh-blockquote);
-  color: var(--gh-muted-2);
-}
-.markdown-body :deep(code) {
+  .markdown-body :deep(blockquote) {
+    margin: 0.9em 0;
+    padding: 0.3em 1em;
+    border-left: 4px solid var(--gh-blockquote);
+    color: var(--gh-muted-2);
+  }
+  .markdown-body :deep(blockquote p) {
+    margin: 0.3em 0;
+  }
+  .markdown-body :deep(code) {
   padding: 0.15em 0.4em;
   border-radius: 6px;
   background: var(--gh-code-inline);
