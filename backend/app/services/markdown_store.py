@@ -22,14 +22,23 @@ class MarkdownStore:
     def path_for(self, *parts: str) -> Path:
         return self.root.joinpath(*(self.safe_name(p) for p in parts)).with_suffix(".md")
 
+    @staticmethod
+    def _normalize_newlines(text: str) -> str:
+        """统一换行为 \\n。
+
+        Windows 下 write_text 会把已含 \\r\\n 的内容再转义成 \\r\\r\\n，导致读回来每行之间多出
+        一个空行（代码块/引用块会被撑开）。这里把 \\r\\r\\n、\\r\\n、\\r 都规整为单个 \\n。
+        """
+        return re.sub(r"\r\r\n|\r\n|\r", "\n", text)
+
     def read(self, path: Path) -> str:
         if not path.exists():
             return ""
-        return path.read_text(encoding="utf-8")
+        return self._normalize_newlines(path.read_bytes().decode("utf-8"))
 
     def write(self, path: Path, content: str) -> Path:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        path.write_bytes(self._normalize_newlines(content).encode("utf-8"))
         return path
 
     def delete(self, path: Path) -> None:

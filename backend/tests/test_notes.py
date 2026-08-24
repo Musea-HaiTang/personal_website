@@ -100,3 +100,16 @@ def test_note_delete_removes_file(client):
 
 def test_note_validation(client):
     assert client.post("/api/notes", json={"title": "", "content": ""}).status_code == 422
+
+
+def test_note_normalizes_double_cr_newlines(client):
+    """Windows 下 write_text 会把 CRLF 内容再转义成 \\r\\r\\n，读回时每行多出空行。
+
+    本次修复让写入与读取统一规整为单个 \\n，避免代码块 / 引用块被撑开。
+    """
+    resp = client.post(
+        "/api/notes",
+        json={"title": "换行", "folder": "测试", "content": "<template>\r\r\n  <p>x</p>"},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["content"] == "<template>\n  <p>x</p>"
