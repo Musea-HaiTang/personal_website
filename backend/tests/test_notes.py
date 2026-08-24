@@ -113,3 +113,39 @@ def test_note_normalizes_double_cr_newlines(client):
     )
     assert resp.status_code == 201
     assert resp.json()["content"] == "<template>\n  <p>x</p>"
+
+
+def test_note_write_persists_normalized_newlines_on_disk(client):
+    """写入时落盘的 .md 必须只含单个 \\n，不能残留 \\r，避免每次读回多出空行。"""
+    content = "<template>\r\r\n  <p>{{ message }}</p>\r\n  <span>x</span>\r"
+    resp = client.post(
+        "/api/notes",
+        json={"title": "换行落盘", "folder": "测试", "content": content},
+    )
+    assert resp.status_code == 201
+    assert resp.json()["content"] == "<template>\n  <p>{{ message }}</p>\n  <span>x</span>\n"
+
+    path = notes_store.root / "测试" / "换行落盘.md"
+    assert b"\r" not in path.read_bytes()
+    assert path.read_bytes() == "<template>\n  <p>{{ message }}</p>\n  <span>x</span>\n".encode("utf-8")
+
+
+def test_note_import_normalizes_newlines_on_disk(client):
+    """导入上传的 .md 时，落盘文件也要归一化换行符，保证存储层干净。"""
+    resp = client.post(
+        "/api/notes/import",
+        data={"folder": "Vue3 笔记"},
+        files=[
+            (
+                "files",
+                ("组件.md", "<template>\r\r\n  <p>x</p>\r\r\n</template>".encode("utf-8"), "text/markdown"),
+            )
+        ],
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["created"]) == 1
+    assert data["created"][0]["content"] == "<template>\n  <p>x</p>\n</template>"
+
+    path = notes_store.root / "Vue3 笔记" / "组件.md"
+    assert path.read_bytes() == "<template>\n  <p>x</p>\n</template>".encode("utf-8")
