@@ -9,10 +9,14 @@ import css from 'highlight.js/lib/languages/css'
 import dockerfile from 'highlight.js/lib/languages/dockerfile'
 import javascript from 'highlight.js/lib/languages/javascript'
 import json from 'highlight.js/lib/languages/json'
+import markdown from 'highlight.js/lib/languages/markdown'
+import powershell from 'highlight.js/lib/languages/powershell'
 import python from 'highlight.js/lib/languages/python'
+import scss from 'highlight.js/lib/languages/scss'
 import sql from 'highlight.js/lib/languages/sql'
 import typescript from 'highlight.js/lib/languages/typescript'
 import xml from 'highlight.js/lib/languages/xml'
+import yaml from 'highlight.js/lib/languages/yaml'
 
 import BaseModal from '../BaseModal.vue'
 import { useNotesStore } from '../../stores/notes'
@@ -23,10 +27,16 @@ hljs.registerLanguage('css', css)
 hljs.registerLanguage('dockerfile', dockerfile)
 hljs.registerLanguage('javascript', javascript)
 hljs.registerLanguage('json', json)
+hljs.registerLanguage('markdown', markdown)
+hljs.registerLanguage('powershell', powershell)
 hljs.registerLanguage('python', python)
+hljs.registerLanguage('scss', scss)
 hljs.registerLanguage('sql', sql)
 hljs.registerLanguage('typescript', typescript)
 hljs.registerLanguage('xml', xml)
+hljs.registerLanguage('yaml', yaml)
+// highlight.js 没有内置 vue，映射到 xml（HTML/组件）高亮
+hljs.registerAliases(['vue'], { languageName: 'xml' })
 
 const props = defineProps({
   note: { type: Object, default: null }
@@ -46,23 +56,31 @@ const siblings = computed(() =>
   notesStore.notes.filter((n) => n.folder === current.value?.folder)
 )
 
+// 给代码块每行加行号：把高亮后的 HTML 按行拆分，用 CSS 计数器在左侧显示序号（与 Typora 一致）。
+function withLineNumbers(codeHtml) {
+  return codeHtml
+    .replace(/\n$/, '') // 去掉结尾换行，避免多出一个空行号
+    .split('\n')
+    .map((line) => `<span class="code-line">${line || ' '}</span>`)
+    .join('')
+}
+
 const md = new MarkdownIt({
   html: false,
   linkify: true,
   breaks: true,
   highlight(str, lang) {
+    let code
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return (
-          '<pre><code class="hljs">' +
-          hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-          '</code></pre>'
-        )
+        code = hljs.highlight(str, { language: lang, ignoreIllegals: true }).value
       } catch {
-        /* 回退到转义纯文本 */
+        code = md.utils.escapeHtml(str)
       }
+    } else {
+      code = md.utils.escapeHtml(str)
     }
-    return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + '</code></pre>'
+    return '<pre class="line-numbers"><code class="hljs">' + withLineNumbers(code) + '</code></pre>'
   }
 })
 md.use(taskLists)
@@ -654,6 +672,25 @@ function switchNote(note) {
   background: transparent;
   font-size: 13.5px;
   line-height: 1.6;
+}
+.markdown-body :deep(pre.line-numbers) {
+  counter-reset: line;
+}
+.markdown-body :deep(pre.line-numbers code) {
+  display: block;
+}
+.markdown-body :deep(pre.line-numbers .code-line) {
+  display: block;
+}
+.markdown-body :deep(pre.line-numbers .code-line::before) {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2em;
+  margin-right: 1em;
+  text-align: right;
+  color: var(--gh-muted-2);
+  user-select: none;
 }
 .markdown-body :deep(table) {
   width: 100%;
