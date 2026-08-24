@@ -67,9 +67,15 @@ const md = new MarkdownIt({
 })
 md.use(taskLists)
 
-const renderedHtml = computed(() =>
-  md.render(String(current.value?.content || '').replace(/\r\n/g, '\n').replace(/\r/g, ''))
-)
+// md 里相邻的 `>` 引用行之间常有空行，会被 markdown-it 拆成多个独立的 <blockquote>，
+// 视觉上就成了断开的几块。这里把相邻的引用块合并成一整块，像 Typora 一样左边框连续。
+function mergeConsecutiveBlockquotes(html) {
+  return html.replace(/<\/blockquote>\s*<blockquote>/g, '')
+}
+const renderedHtml = computed(() => {
+  const content = String(current.value?.content || '').replace(/\r\n/g, '\n').replace(/\r/g, '')
+  return mergeConsecutiveBlockquotes(md.render(content))
+})
 
 /* ---------- 侧栏状态 ---------- */
 const activeTab = ref('outline')
@@ -92,13 +98,6 @@ function slugify(text) {
 function buildOutline() {
   const rootEl = bodyEl.value
   if (!rootEl) return
-  const title = (current.value?.title || '').trim()
-
-  // 正文 h1 若与标题重复则去掉，避免大纲里出现两个“书名”
-  const duplicateTitle = [...rootEl.querySelectorAll('h1:not(.note-title)')].find(
-    (h) => h.textContent.trim() === title
-  )
-  if (duplicateTitle) duplicateTitle.remove()
 
   // 收集全部正文标题（h1~h6），先按原始级别生成大纲，再统一降级正文 h1
   const headingEls = [...rootEl.querySelectorAll('h1:not(.note-title), h2, h3, h4, h5, h6')]
@@ -113,7 +112,8 @@ function buildOutline() {
   })
 
   // 用栈按标题级别构筑层级树：h1 为顶层，h2 归属当前 h1，h3 归属当前 h2，依此类推
-  const root = { id: 'note-title', text: title || '无标题', children: [] }
+  // 根节点为虚拟容器（不渲染正文文件名），大纲只包含正文里实际写出的标题。
+  const root = { id: '__root__', text: '', children: [] }
   const stack = [{ node: root, level: 0 }]
   headingEls.forEach((h) => {
     const level = Number(h.tagName[1]) // 'H1' -> 1 ... 'H6' -> 6
@@ -123,7 +123,15 @@ function buildOutline() {
     stack.push({ node: item, level })
   })
   outlineRoot.value = root
-  nodeCollapsed.value = {}
+
+  // 默认只展开前两级（h1 书名/章节、h2 小节），更深层（h3+）收起，像 Typora 大纲一样简洁
+  const collapsed = {}
+  const markCollapsed = (node) => {
+    if (node.level >= 2) collapsed[node.id] = true
+    node.children.forEach(markCollapsed)
+  }
+  markCollapsed(root)
+  nodeCollapsed.value = collapsed
 
   // 正文 h1（章节）降级为 h2，与 note-title 区分；保留 id 以便大纲跳转
   rootEl.querySelectorAll('h1:not(.note-title)').forEach((h1) => {
@@ -145,6 +153,12 @@ watch(
 
 function toggleNode(id) {
   nodeCollapsed.value = { ...nodeCollapsed.value, [id]: !nodeCollapsed.value[id] }
+}
+
+function olClass(level) {
+  if (level <= 1) return 'h1'
+  if (level === 2) return 'h2'
+  return 'h3'
 }
 
 const outlineItems = computed(() => {
@@ -197,42 +211,21 @@ function switchNote(note) {
           </div>
           <nav v-if="activeTab === 'outline' && outlineRoot" class="outline-tree">
             <div
+              v-for="item in outlineItems"
+              :key="item.id"
               class="ol-node"
-              :class="{ collapsed: nodeCollapsed['note-title'] }"
+              :class="{ collapsed: item.collapsed }"
             >
-              <div class="ol-row">
-                <button
-                  v-if="outlineRoot.children.length"
-                  class="ol-chev"
-                  title="展开/收起"
-                  @click="toggleNode('note-title')"
-                >
+              <div class="ol-row" :style="{ paddingLeft: (item.level - 1) * 14 + 'px' }">
+                <button v-if="item.hasChildren" class="ol-chev" title="展开/收起" @click="toggleNode(item.id)">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
                 <span v-else class="ol-chev empty"></span>
-                <button class="ol-item h1" @click="jumpTo(outlineRoot.id)">{{ outlineRoot.text }}</button>
-              </div>
-              <div v-if="!nodeCollapsed['note-title']" class="ol-children">
-                <div
-                  v-for="item in outlineItems"
-                  :key="item.id"
-                  class="ol-node"
-                  :class="{ collapsed: item.collapsed }"
-                >
-                  <div class="ol-row" :style="{ paddingLeft: (item.level - 1) * 14 + 'px' }">
-                    <button v-if="item.hasChildren" class="ol-chev" title="展开/收起" @click="toggleNode(item.id)">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12">
-                        <path d="M6 9l6 6 6-6" />
-                      </svg>
-                    </button>
-                    <span v-else class="ol-chev empty"></span>
-                    <button class="ol-item" :class="item.level === 1 ? 'h2' : 'h3'" @click="jumpTo(item.id)">
-                      {{ item.text }}
-                    </button>
-                  </div>
-                </div>
+                <button class="ol-item" :class="olClass(item.level)" @click="jumpTo(item.id)">
+                  {{ item.text }}
+                </button>
               </div>
             </div>
           </nav>
@@ -398,9 +391,6 @@ function switchNote(note) {
   background: var(--gh-hover);
   color: var(--gh-link);
   font-weight: 600;
-}
-.ol-node.collapsed .ol-children {
-  display: none;
 }
 .ol-row {
   display: flex;
