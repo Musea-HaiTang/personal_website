@@ -224,6 +224,11 @@ def current_week_start() -> date:
     return today - timedelta(days=today.weekday())
 
 
+def _week_start_of(day: date) -> date:
+    """某日所在周的周一。"""
+    return day - timedelta(days=day.weekday())
+
+
 def weekly_stats(db: Session, weeks: int) -> list[WeeklyStatsOut]:
     """近 N 周计划统计：完成率 / 计划数 / 子任务数 / 任务数 + 每日完成计数（供热力图）。"""
     end_week = current_week_start()
@@ -249,7 +254,7 @@ def weekly_stats(db: Session, weeks: int) -> list[WeeklyStatsOut]:
     ).all()
     tasks_by_week: dict[date, list[Task]] = defaultdict(list)
     for t in tasks:
-        tasks_by_week[t.date].append(t)
+        tasks_by_week[_week_start_of(t.date)].append(t)
 
     # 每日完成计数（子任务 + 任务按 completed_at 日期）
     comp_by_date: dict[date, int] = defaultdict(int)

@@ -66,22 +66,21 @@ function bar(weeks) {
   return out + `</svg>`
 }
 
-function heat(weeks) {
-  if (!weeks.length) return ''
-  let cells = ''
-  weeks.forEach((d) => {
-    for (let day = 0; day < 7; day++) {
-      const c = d.daily_counts?.[day]?.count || 0
-      const cls = c >= 4 ? 'c4' : c >= 3 ? 'c3' : c >= 2 ? 'c2' : c >= 1 ? 'c1' : 'c0'
-      cells += `<i class="${cls}" title="${label(d.week_start)} · 周${day + 1} · ${c} 项"></i>`
-    }
-  })
-  return cells
-}
-
 const lineHtml = computed(() => line(props.weeks))
 const barHtml = computed(() => bar(props.weeks))
-const heatCells = computed(() => heat(props.weeks))
+const heatList = computed(() => {
+  const items = []
+  props.weeks.forEach((d) => {
+    for (let day = 0; day < 7; day++) {
+      const c = d.daily_counts?.[day]?.count || 0
+      items.push({
+        cls: c >= 4 ? 'c4' : c >= 3 ? 'c3' : c >= 2 ? 'c2' : c >= 1 ? 'c1' : 'c0',
+        title: `${label(d.week_start)} · 周${day + 1} · ${c} 项`,
+      })
+    }
+  })
+  return items
+})
 </script>
 
 <template>
@@ -109,7 +108,11 @@ const heatCells = computed(() => heat(props.weeks))
       <div class="section"><h3>每周完成热力图 · 近 12 周</h3><span class="sub">颜色越深完成越多</span></div>
       <div class="hmwrap">
         <div class="daylab"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
-        <div class="hmmain"><div class="hm" v-html="heatCells"></div></div>
+        <div class="hmmain">
+          <div class="hm">
+            <i v-for="(item, idx) in heatList" :key="idx" :class="item.cls" :title="item.title"></i>
+          </div>
+        </div>
       </div>
       <div class="legend" style="margin-top:12px">
         <span><i style="background:#f4f1ea"></i>0</span>

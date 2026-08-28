@@ -102,7 +102,8 @@ def test_plans_stats(client):
     ).json()
     sub = client.post(f"/api/plans/{plan['id']}/subtasks", json={"name": "完成子任务"}).json()
     client.put(f"/api/subtasks/{sub['id']}", json={"completed": True})
-    client.post("/api/tasks", json={"title": "今日任务", "date": str(ws), "importance": 2})
+    # 用周中（非周一）日期，验证任务按“所在周”统计而非具体日期
+    client.post("/api/tasks", json={"title": "今日任务", "date": str(ws + timedelta(days=2)), "importance": 2})
 
     resp = client.get("/api/plans/stats", params={"weeks": 12})
     assert resp.status_code == 200
