@@ -12,11 +12,12 @@ export const usePlansStore = defineStore('plans', {
     error: ''
   }),
   actions: {
-    async refresh() {
+    async refresh(weekStartParam = null) {
       this.error = ''
+      const ws = weekStartParam || weekStart
       try {
         const [plansRes, todayRes, allRes] = await Promise.all([
-          api.get('/plans', { params: { week_start: weekStart } }),
+          api.get('/plans', { params: { week_start: ws } }),
           api.get('/tasks', { params: { date: today } }),
           api.get('/tasks')
         ])
@@ -60,15 +61,16 @@ export const usePlansStore = defineStore('plans', {
       if (note) await api.put(`/tasks/${id}`, { review_note: note })
       return (await api.post(`/tasks/${id}/rollover`)).data
     },
-    async exportWeek() {
+    async exportWeek(weekStartParam = null) {
+      const ws = weekStartParam || weekStart
       const { data } = await api.get('/plans/week/export', {
-        params: { week_start: weekStart },
+        params: { week_start: ws },
         responseType: 'blob',
       })
       const url = URL.createObjectURL(data)
       const a = document.createElement('a')
       a.href = url
-      a.download = `周计划-${weekStart}.md`
+      a.download = `周计划-${ws}.md`
       a.click()
       URL.revokeObjectURL(url)
     }

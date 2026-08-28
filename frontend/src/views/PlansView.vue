@@ -7,18 +7,29 @@ import ReviewModal from '../components/plans/ReviewModal.vue'
 import SubtaskModal from '../components/plans/SubtaskModal.vue'
 import TaskModal from '../components/plans/TaskModal.vue'
 import { usePlansStore } from '../stores/plans'
-import { isoWeek, today, weekEnd, weekStart } from '../utils/date'
+import { addDays, isoWeek, today, weekStart } from '../utils/date'
 
 // ---------- 日期与展示 ----------
 function formatWhen(iso) {
   if (!iso) return ''
   return iso.slice(5, 10).replace('-', '-') + ' ' + iso.slice(11, 16)
 }
+const fmt = (s) => `${parseInt(s.slice(5, 7), 10)}月${parseInt(s.slice(8, 10), 10)}日`
+
+// 所选周（默认本周，会话级）
+const selectedWeek = ref(weekStart)
+const selectedWeekEnd = computed(() => addDays(selectedWeek.value, 6))
+const isCurrentWeek = computed(() => selectedWeek.value === weekStart)
+const isPast = computed(() => !isCurrentWeek.value)
 
 const weekLabel = computed(() => {
-  const fmt = (s) => `${parseInt(s.slice(5, 7), 10)}月${parseInt(s.slice(8, 10), 10)}日`
-  return `${weekStart.slice(0, 4)} 年第 ${isoWeek(weekStart)} 周 · ${fmt(weekStart)} – ${fmt(weekEnd)}`
+  return `${selectedWeek.value.slice(0, 4)} 年第 ${isoWeek(selectedWeek.value)} 周 · ${fmt(selectedWeek.value)} – ${fmt(selectedWeekEnd.value)}`
 })
+const todayLabel = computed(() =>
+  isCurrentWeek.value
+    ? `今日执行 · ${today}`
+    : `本周任务 · ${fmt(selectedWeek.value)} – ${fmt(selectedWeekEnd.value)}`
+)
 const impLabels = { 1: '低', 2: '中', 3: '高' }
 const impCls = { 1: 'bg-paper-soft text-sub', 2: 'bg-teal-soft text-teal', 3: 'bg-red-soft text-red' }
 const planColors = ['#0e7c74', '#7c5cbf', '#3b6fd4', '#b7791f', '#c4533a']
@@ -35,9 +46,20 @@ const selectedPlan = computed(() => plans.value.find((p) => p.id === selectedPla
 const colsTask = ref(localStorage.getItem('plan-cols-v2') || '24px 190px 1fr 2fr 56px')
 const colsSub = ref(localStorage.getItem('plan-subcols-v2') || '24px 180px 2fr 70px 1fr 28px')
 
+// ---------- 周导航 ----------
+function moveWeek(delta) {
+  const next = addDays(selectedWeek.value, delta * 7)
+  selectedWeek.value = next > weekStart ? weekStart : next
+  refresh()
+}
+function goThisWeek() {
+  selectedWeek.value = weekStart
+  refresh()
+}
+
 // ---------- 加载（会话级缓存，见 stores/plans.js） ----------
 async function refresh() {
-  await plansStore.refresh()
+  await plansStore.refresh(selectedWeek.value)
   if (selectedPlanId.value && !plans.value.some((p) => p.id === selectedPlanId.value)) {
     selectedPlanId.value = null
   }
@@ -54,7 +76,7 @@ const weekStats = computed(() => {
   }
   for (const t of allTasks.value) {
     if (t.subtask_id) continue
-    if (t.date >= weekStart && t.date <= weekEnd) {
+    if (t.date >= selectedWeek.value && t.date <= selectedWeekEnd.value) {
       total += 1
       if (t.completed) done += 1
     }
@@ -62,12 +84,23 @@ const weekStats = computed(() => {
   const pct = total ? Math.round((done / total) * 100) : 0
   return { total, done, pct }
 })
-const unfinishedToday = computed(() => todayTasks.value.filter((t) => !t.completed))
-const todayDoneCount = computed(() => todayTasks.value.filter((t) => t.completed).length)
+// 视图作用域：本周 = 今日任务；过往周 = 该周全部任务（只读）
+const viewTasks = computed(() =>
+  isCurrentWeek.value
+    ? todayTasks.value
+    : allTasks.value.filter((t) => t.date >= selectedWeek.value && t.date <= selectedWeekEnd.value)
+)
+const viewUnfinished = computed(() => viewTasks.value.filter((t) => !t.completed))
+const viewDoneCount = computed(() => viewTasks.value.filter((t) => t.completed).length)
 const selectedDoneId = ref(null)
 const doneTasks = computed(() =>
   allTasks.value
-    .filter((t) => t.completed)
+    .filter(
+      (t) =>
+        t.completed &&
+        ((t.completed_at || t.date || '').slice(0, 10) >= selectedWeek.value) &&
+        ((t.completed_at || t.date || '').slice(0, 10) <= selectedWeekEnd.value)
+    )
     .sort((a, b) => (b.completed_at || '').localeCompare(a.completed_at || ''))
 )
 const selectedDone = computed(() => doneTasks.value.find((t) => t.id === selectedDoneId.value) || null)
@@ -89,13 +122,14 @@ function planProgress(plan) {
 const planModal = ref(false)
 const planEditing = ref(null)
 function openPlanModal(plan = null) {
+  if (isPast.value) return
   planEditing.value = plan
   planModal.value = true
 }
 async function savePlan(payload) {
   if (!payload.title) return
   try {
-    await plansStore.savePlan({ ...payload, id: planEditing.value?.id ?? null, week_start: weekStart })
+    await plansStore.savePlan({ ...payload, id: planEditing.value?.id ?? null, week_start: selectedWeek.value })
     planModal.value = false
     await refresh()
   } catch (e) {
@@ -103,6 +137,7 @@ async function savePlan(payload) {
   }
 }
 async function deletePlan(plan) {
+  if (isPast.value) return
   if (!confirm(`确定删除计划「${plan.title}」？其子任务也会一并删除。`)) return
   try {
     await plansStore.deletePlan(plan.id)
@@ -116,6 +151,7 @@ async function deletePlan(plan) {
 const subModal = ref(false)
 const subEditing = ref(null)
 function openSubModal(subtask = null) {
+  if (isPast.value) return
   subEditing.value = subtask
   subModal.value = true
 }
@@ -130,6 +166,7 @@ async function saveSubtask(payload) {
   }
 }
 async function toggleSubtask(subtask) {
+  if (isPast.value) return
   try {
     await plansStore.updateSubtask(subtask.id, { completed: !subtask.completed })
     await refresh()
@@ -138,6 +175,7 @@ async function toggleSubtask(subtask) {
   }
 }
 async function deleteSubtask(subtask) {
+  if (isPast.value) return
   if (!confirm(`确定删除子任务「${subtask.name}」？`)) return
   try {
     await plansStore.deleteSubtask(subtask.id)
@@ -151,6 +189,7 @@ async function deleteSubtask(subtask) {
 const taskModal = ref(false)
 const taskEditing = ref(null)
 function openTaskModal(task = null) {
+  if (isPast.value) return
   taskEditing.value = task
   taskModal.value = true
 }
@@ -164,6 +203,7 @@ async function saveTask(payload) {
   }
 }
 async function toggleTask(task) {
+  if (isPast.value) return
   try {
     await plansStore.updateTask(task.id, { completed: !task.completed })
     await refresh()
@@ -172,6 +212,7 @@ async function toggleTask(task) {
   }
 }
 async function deleteTask() {
+  if (isPast.value) return
   if (!taskEditing.value) return
   if (!confirm(`确定删除任务「${taskEditing.value.title}」？`)) return
   try {
@@ -187,6 +228,7 @@ async function deleteTask() {
 const reviewModal = ref(false)
 const reviewTask = ref(null)
 function openReview(task) {
+  if (isPast.value) return
   reviewTask.value = task
   reviewModal.value = true
 }
@@ -204,7 +246,8 @@ async function confirmRollover(note) {
   reviewModal.value = false
 }
 async function rolloverAll() {
-  for (const task of unfinishedToday.value) {
+  if (isPast.value) return
+  for (const task of viewUnfinished.value) {
     await rolloverOne(task)
   }
 }
@@ -221,7 +264,7 @@ async function reopenTask(task) {
 // ---------- 导出 ----------
 async function exportWeek() {
   try {
-    await plansStore.exportWeek()
+    await plansStore.exportWeek(selectedWeek.value)
   } catch (e) {
     error.value = e.response?.data?.detail || '导出失败'
   }
@@ -272,12 +315,20 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div>
+  <div :class="{ ro: isPast }">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-      <p class="text-xs font-semibold tracking-widest text-teal">{{ weekLabel }}</p>
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2">
+          <button class="week-nav" title="上一周" @click="moveWeek(-1)">‹</button>
+          <p class="whitespace-nowrap text-xs font-semibold tracking-widest text-teal">{{ weekLabel }}</p>
+          <button class="week-nav" title="下一周" :disabled="selectedWeek === weekStart" @click="moveWeek(1)">›</button>
+          <button v-if="isPast" class="week-text" @click="goThisWeek">回到本周</button>
+        </div>
+        <span v-if="isPast" class="inline-flex items-center rounded-full border border-amber bg-amber-soft px-2.5 py-0.5 text-[10px] font-bold text-amber">历史周 · 只读</span>
+      </div>
       <div class="flex items-center gap-3">
         <span class="inline-flex items-center gap-2 rounded-full border border-hairline bg-card px-3 py-1.5 text-xs text-sub">
-          本周完成度 <b class="text-ink">{{ weekStats.pct }}%</b>
+          {{ isCurrentWeek ? '本周完成度' : '当周完成度' }} <b class="text-ink">{{ weekStats.pct }}%</b>
           <span class="h-1.5 w-16 overflow-hidden rounded-full bg-hairline">
             <span class="block h-full rounded-full bg-teal" :style="{ width: weekStats.pct + '%' }"></span>
           </span>
@@ -286,7 +337,7 @@ onMounted(async () => {
           class="rounded-lg border border-hairline bg-card px-3 py-1.5 text-xs font-semibold text-sub hover:border-teal hover:text-teal"
           @click="exportWeek"
         >
-          导出本周
+          {{ isCurrentWeek ? '导出本周' : '导出当周' }}
         </button>
       </div>
     </div>
@@ -313,8 +364,8 @@ onMounted(async () => {
     <div v-if="activeTab === 'today'">
       <div class="overflow-hidden rounded-lg border border-hairline bg-card shadow-sm">
         <div class="flex items-center justify-between border-b border-hairline px-4 py-3">
-          <h3 class="text-sm font-semibold text-ink">今日执行 · {{ today }}</h3>
-          <button class="rounded bg-teal px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-dark" @click="openTaskModal()">
+          <h3 class="text-sm font-semibold text-ink">{{ todayLabel }}</h3>
+          <button class="no-read rounded bg-teal px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-dark" @click="openTaskModal()">
             ＋ 添加任务
           </button>
         </div>
@@ -325,9 +376,9 @@ onMounted(async () => {
           <span class="relative">备注<span class="resize-handle" @mousedown="startResize($event, 'task', 4)"></span></span>
           <span>重要度</span>
         </div>
-        <div v-if="loaded && !unfinishedToday.length" class="px-4 py-8 text-center text-sm text-sub">今天没有待办，点「添加任务」安排一件吧。</div>
+        <div v-if="loaded && !viewUnfinished.length" class="px-4 py-8 text-center text-sm text-sub">{{ isCurrentWeek ? '今天没有待办，点「添加任务」安排一件吧。' : '该周没有任务记录。' }}</div>
         <div
-          v-for="task in unfinishedToday"
+          v-for="task in viewUnfinished"
           :key="task.id"
           class="grid cursor-pointer items-center gap-x-2 border-b border-hairline px-4 py-2.5 text-sm hover:bg-paper-soft"
           :style="{ gridTemplateColumns: colsTask }"
@@ -345,8 +396,8 @@ onMounted(async () => {
           <span class="w-fit rounded px-2 py-0.5 text-[11px] font-bold" :class="impCls[task.importance]">{{ impLabels[task.importance] }}</span>
         </div>
         <div class="flex items-center gap-3 border-t border-hairline bg-paper-soft px-4 py-2.5 text-xs text-sub">
-          今日进度
-          <b class="text-ink">{{ todayDoneCount }}/{{ todayTasks.length }}</b>
+          {{ isCurrentWeek ? '今日进度' : '当周任务' }}
+          <b class="text-ink">{{ viewDoneCount }}/{{ viewTasks.length }}</b>
         </div>
       </div>
     </div>
@@ -355,10 +406,10 @@ onMounted(async () => {
     <div v-if="activeTab === 'plan'">
       <div class="mb-4 flex items-center justify-between">
         <div>
-          <h3 class="text-base font-semibold">本周计划</h3>
-          <p class="text-xs text-sub">点计划卡片，右侧管理子任务 · 中途可随时加新计划</p>
+          <h3 class="text-base font-semibold">{{ isCurrentWeek ? '本周计划' : '该周计划' }}</h3>
+          <p class="text-xs text-sub">{{ isCurrentWeek ? '点计划卡片，右侧管理子任务 · 中途可随时加新计划' : '点计划卡片，右侧查看该计划子任务' }}</p>
         </div>
-        <button class="rounded bg-teal px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-dark" @click="openPlanModal()">＋ 添加计划</button>
+        <button class="no-read rounded bg-teal px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-dark" @click="openPlanModal()">＋ 添加计划</button>
       </div>
       <div class="grid items-start gap-4" style="grid-template-columns: 300px 1fr">
         <div class="flex flex-col gap-2">
@@ -404,7 +455,7 @@ onMounted(async () => {
               </div>
             </div>
           </button>
-          <p v-if="loaded && !plans.length" class="rounded-xl border border-dashed border-hairline p-6 text-center text-sm text-sub">本周还没有计划，先加一个吧。</p>
+          <p v-if="loaded && !plans.length" class="rounded-xl border border-dashed border-hairline p-6 text-center text-sm text-sub">{{ isCurrentWeek ? '本周还没有计划，先加一个吧。' : '该周还没有计划。' }}</p>
         </div>
 
         <div v-if="selectedPlan" class="rounded-2xl border border-hairline bg-card p-5">
@@ -435,14 +486,14 @@ onMounted(async () => {
               </div>
             </div>
             <div class="flex items-center gap-2">
-              <button class="rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-sub hover:border-teal hover:text-teal" @click="openPlanModal(selectedPlan)">
+              <button class="no-read rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-sub hover:border-teal hover:text-teal" @click="openPlanModal(selectedPlan)">
                 编辑计划
               </button>
-              <button class="rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-sub hover:border-red hover:text-red" @click="deletePlan(selectedPlan)">
+              <button class="no-read rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-sub hover:border-red hover:text-red" @click="deletePlan(selectedPlan)">
                 删除计划
               </button>
               <button
-                class="rounded px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
+                class="no-read rounded px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90"
                 :style="{ background: planColors[selectedPlan.id % planColors.length] }"
                 @click="openSubModal()"
               >
@@ -458,7 +509,7 @@ onMounted(async () => {
             <span>状态</span>
             <span></span>
           </div>
-          <div v-if="loaded && !selectedPlan.subtasks.length" class="px-4 py-6 text-center text-sm text-sub">还没有子任务，点右上角「添加子任务」加一条吧。</div>
+          <div v-if="loaded && !selectedPlan.subtasks.length" class="px-4 py-6 text-center text-sm text-sub">{{ isCurrentWeek ? '还没有子任务，点右上角「添加子任务」加一条吧。' : '该计划还没有子任务。' }}</div>
           <div
             v-for="sub in selectedPlan.subtasks"
             :key="sub.id"
@@ -473,10 +524,10 @@ onMounted(async () => {
             <span class="text-xs" :class="sub.completed ? 'text-green' : 'text-sub'">
               {{ sub.completed ? '完成于 ' + formatWhen(sub.completed_at) : '待完成' }}
             </span>
-            <button class="justify-self-start text-hairline hover:text-red" title="删除子任务" @click.stop="deleteSubtask(sub)">×</button>
+            <button class="no-read justify-self-start text-hairline hover:text-red" title="删除子任务" @click.stop="deleteSubtask(sub)">×</button>
           </div>
         </div>
-        <div v-else-if="loaded" class="rounded-xl border border-dashed border-hairline p-10 text-center text-sm text-sub">从左侧选择一个计划，查看和管理子任务</div>
+        <div v-else-if="loaded" class="rounded-xl border border-dashed border-hairline p-10 text-center text-sm text-sub">{{ isCurrentWeek ? '从左侧选择一个计划，查看和管理子任务' : '从左侧选择一个计划，查看该计划子任务' }}</div>
       </div>
     </div>
 
@@ -507,7 +558,7 @@ onMounted(async () => {
             </div>
             <p class="mt-3 text-sm leading-relaxed text-sub">{{ selectedDone.note || '没有备注' }}</p>
             <p class="mt-3 text-xs text-sub">完成于 {{ formatWhen(selectedDone.completed_at) }}</p>
-            <button class="mt-4 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-sub hover:border-teal hover:text-teal" @click="reopenTask(selectedDone)">
+            <button class="no-read mt-4 rounded-lg border border-hairline px-3 py-1.5 text-xs font-semibold text-sub hover:border-teal hover:text-teal" @click="reopenTask(selectedDone)">
               重新打开
             </button>
           </template>
@@ -520,22 +571,22 @@ onMounted(async () => {
     <div v-if="activeTab === 'review'">
       <div class="grid items-start gap-0 overflow-hidden rounded-lg border border-hairline bg-card shadow-sm" style="grid-template-columns: 1.2fr 0.8fr">
         <div class="border-r border-hairline p-5">
-          <h4 class="mb-2 text-sm font-semibold text-ink">未完成 · {{ unfinishedToday.length }} 项</h4>
-          <div v-for="task in unfinishedToday" :key="task.id" class="flex items-center gap-3 border-t border-dashed border-hairline py-3 text-sm">
+          <h4 class="mb-2 text-sm font-semibold text-ink">未完成 · {{ viewUnfinished.length }} 项</h4>
+          <div v-for="task in viewUnfinished" :key="task.id" class="flex items-center gap-3 border-t border-dashed border-hairline py-3 text-sm">
             <span class="check-circle" :class="{ on: task.completed }" @click="toggleTask(task)"></span>
             <span class="flex-1 cursor-pointer font-medium text-teal" @click="openReview(task)">{{ task.title }}</span>
             <span v-if="task.plan_title" class="rounded-full bg-paper-soft px-2 py-0.5 text-[11px] text-sub">{{ task.plan_title }}</span>
           </div>
-          <p v-if="loaded && !unfinishedToday.length" class="py-6 text-center text-sm text-sub">今天都完成了，真棒。</p>
-          <button class="mt-4 w-full rounded-lg bg-teal py-2 text-sm font-semibold text-white hover:bg-teal-dark" @click="rolloverAll">全部顺延到明天</button>
+          <p v-if="loaded && !viewUnfinished.length" class="py-6 text-center text-sm text-sub">{{ isCurrentWeek ? '今天都完成了，真棒。' : '该周都完成了。' }}</p>
+          <button class="no-read mt-4 w-full rounded-lg bg-teal py-2 text-sm font-semibold text-white hover:bg-teal-dark" @click="rolloverAll">全部顺延到明天</button>
         </div>
         <div class="bg-paper-soft p-5">
-          <h4 class="mb-2 text-sm font-semibold text-ink">今日回顾</h4>
+          <h4 class="mb-2 text-sm font-semibold text-ink">{{ isCurrentWeek ? '今日回顾' : '该周回顾' }}</h4>
           <div class="flex items-center justify-between border-t border-dashed border-hairline py-2.5 text-sm">
-            <span class="text-sub">今日完成</span><b class="text-ink">{{ doneTasks.length }} 项</b>
+            <span class="text-sub">{{ isCurrentWeek ? '今日完成' : '该周完成' }}</span><b class="text-ink">{{ viewDoneCount }} 项</b>
           </div>
           <div class="flex items-center justify-between border-t border-dashed border-hairline py-2.5 text-sm">
-            <span class="text-sub">本周完成度</span><b class="text-ink">{{ weekStats.pct }}%</b>
+            <span class="text-sub">{{ isCurrentWeek ? '本周完成度' : '该周完成度' }}</span><b class="text-ink">{{ weekStats.pct }}%</b>
           </div>
           <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-hairline">
             <span class="block h-full rounded-full bg-green" :style="{ width: weekStats.pct + '%' }"></span>
@@ -553,6 +604,50 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.week-nav {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--hairline);
+  background: var(--card);
+  color: var(--ink);
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 17px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.week-nav:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.week-nav:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.week-text {
+  font-size: 12px;
+  color: var(--sub);
+  border: 1px solid var(--hairline);
+  background: var(--card);
+  border-radius: 8px;
+  padding: 4px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.week-text:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+/* 过往周只读：隐藏编辑/新增/删除/顺延入口，勾选圆圈不可点 */
+.ro .no-read {
+  display: none !important;
+}
+.ro .check-circle {
+  cursor: default;
+}
 .resize-handle {
   position: absolute;
   right: -7px;
