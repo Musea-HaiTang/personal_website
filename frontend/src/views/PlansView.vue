@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import PlanModal from '../components/plans/PlanModal.vue'
 import ReviewModal from '../components/plans/ReviewModal.vue'
 import StatsPanel from '../components/plans/StatsPanel.vue'
+import SummaryPanel from '../components/plans/SummaryPanel.vue'
 import SubtaskModal from '../components/plans/SubtaskModal.vue'
 import TaskModal from '../components/plans/TaskModal.vue'
 import { usePlansStore } from '../stores/plans'
@@ -365,6 +366,7 @@ onMounted(async () => {
           { key: 'plan', label: '本周计划' },
           { key: 'done', label: '已完成' },
           { key: 'review', label: '复盘' },
+          { key: 'summary', label: '周总结' },
           { key: 'stat', label: '统计' },
         ]"
         :key="tab.key"
@@ -613,6 +615,9 @@ onMounted(async () => {
 
     <!-- 统计（全局视图，不跟随所选周） -->
     <StatsPanel v-if="activeTab === 'stat'" :weeks="statData?.weeks || []" :error="statError" />
+
+    <!-- 周总结（跟随所选周，任何一周都能回顾并修改） -->
+    <SummaryPanel v-if="activeTab === 'summary'" :week-start="selectedWeek" />
 
     <!-- 弹窗 -->
     <PlanModal v-if="planModal" :plan="planEditing" @save="savePlan" @close="planModal = false" />

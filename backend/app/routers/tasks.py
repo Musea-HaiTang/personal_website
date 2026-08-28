@@ -16,6 +16,8 @@ from app.schemas.tasks import (
     WeeklyPlanCreate,
     WeeklyPlanOut,
     WeeklyPlanUpdate,
+    WeekSummaryOut,
+    WeekSummaryUpdate,
 )
 from app.services import tasks as tasks_service
 
@@ -55,6 +57,16 @@ def delete_plan(plan_id: int, db: Session = Depends(get_db)):
 @router.get("/api/plans/week/export", response_class=PlainTextResponse)
 def export_week(week_start: date, db: Session = Depends(get_db)):
     return PlainTextResponse(tasks_service.export_week_markdown(db, week_start), media_type="text/markdown; charset=utf-8")
+
+
+@router.get("/api/plans/{week_start}/summary", response_model=WeekSummaryOut)
+def get_week_summary(week_start: date, db: Session = Depends(get_db)):
+    return tasks_service.get_week_summary(db, week_start)
+
+
+@router.put("/api/plans/{week_start}/summary", response_model=WeekSummaryOut)
+def put_week_summary(week_start: date, payload: WeekSummaryUpdate, db: Session = Depends(get_db)):
+    return tasks_service.put_week_summary(db, week_start, payload)
 
 
 @router.post("/api/plans/{plan_id}/subtasks", response_model=SubtaskOut, status_code=201)

@@ -69,3 +69,16 @@ class Task(Base):
 
     plan: Mapped["WeeklyPlan | None"] = relationship()
     subtask: Mapped["Subtask | None"] = relationship()
+
+
+class WeekSummary(Base):
+    """周总结：按周存储手动填写的收获与下周重点；完成/未完成清单实时派生，不落库。"""
+
+    __tablename__ = "week_summaries"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    week_start: Mapped[date] = mapped_column(Date, nullable=False, unique=True, index=True)
+    reflection: Mapped[str | None] = mapped_column(Text, nullable=True)
+    next_plan: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now_local, onupdate=now_local)
+    user_id: Mapped[str | None] = mapped_column(String(50), nullable=True)

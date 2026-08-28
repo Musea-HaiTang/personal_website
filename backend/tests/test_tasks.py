@@ -6,7 +6,7 @@ from sqlalchemy import delete
 
 from app.database import SessionLocal
 from app.main import app
-from app.models.tasks import Subtask, Task, WeeklyPlan
+from app.models.tasks import Subtask, Task, WeekSummary, WeeklyPlan
 
 
 @pytest.fixture()
@@ -17,6 +17,7 @@ def client():
         db.execute(delete(Task))
         db.execute(delete(Subtask))
         db.execute(delete(WeeklyPlan))
+        db.execute(delete(WeekSummary))
         db.commit()
 
 
@@ -119,6 +120,44 @@ def test_plans_stats_week_range(client):
     assert client.get("/api/plans/stats", params={"weeks": 3}).status_code == 200
     assert len(client.get("/api/plans/stats", params={"weeks": 3}).json()["weeks"]) == 3
     assert client.get("/api/plans/stats", params={"weeks": 0}).status_code == 422
+
+
+def test_week_summary_empty(client):
+    ws = _current_week_start()
+    resp = client.get(f"/api/plans/{ws}/summary")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["done"] == []
+    assert data["undone"] == []
+    assert data["reflection"] is None
+    assert data["next_plan"] is None
+
+
+def test_week_summary_put_and_get(client):
+    ws = _current_week_start()
+    task = client.post(
+        "/api/tasks", json={"title": "完成今日任务", "date": str(ws), "importance": 2}
+    ).json()
+    client.put(f"/api/tasks/{task['id']}", json={"completed": True})
+    plan = client.post(
+        "/api/plans", json={"title": "本周计划", "week_start": str(ws), "importance": 2}
+    ).json()
+    client.post(f"/api/plans/{plan['id']}/subtasks", json={"name": "未完成子任务"})
+
+    summer = client.get(f"/api/plans/{ws}/summary").json()
+    assert any(i["title"] == "完成今日任务" for i in summer["done"])
+    assert any(i["title"] == "未完成子任务" for i in summer["undone"])
+
+    upd = client.put(
+        f"/api/plans/{ws}/summary", json={"reflection": "收获", "next_plan": "下周重点"}
+    )
+    assert upd.status_code == 200
+    assert upd.json()["reflection"] == "收获"
+    assert upd.json()["next_plan"] == "下周重点"
+
+    got = client.get(f"/api/plans/{ws}/summary").json()
+    assert got["reflection"] == "收获"
+    assert got["next_plan"] == "下周重点"
 
 
 def test_task_filter_by_date(client):

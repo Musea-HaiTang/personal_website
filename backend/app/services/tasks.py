@@ -8,8 +8,10 @@ from sqlalchemy.orm import Session
 
 from app.config import now_local
 from app.models.tasks import Subtask, Task, WeeklyPlan
+from app.models.tasks import WeekSummary
 from app.schemas.tasks import (
     DailyCount,
+    SummaryItem,
     SubtaskCreate,
     SubtaskUpdate,
     TaskCreate,
@@ -18,6 +20,8 @@ from app.schemas.tasks import (
     WeeklyPlanCreate,
     WeeklyPlanUpdate,
     WeeklyStatsOut,
+    WeekSummaryOut,
+    WeekSummaryUpdate,
 )
 
 
@@ -286,3 +290,58 @@ def weekly_stats(db: Session, weeks: int) -> list[WeeklyStatsOut]:
             )
         )
     return result
+
+
+def _week_items(db: Session, week_start: date) -> tuple[list[SummaryItem], list[SummaryItem]]:
+    """该周完成 / 未完成清单（任务 + 该周计划的子任务，实时派生）。"""
+    we = week_start + timedelta(days=6)
+    tasks = db.scalars(select(Task).where(Task.date >= week_start, Task.date <= we)).all()
+    plans = db.scalars(select(WeeklyPlan).where(WeeklyPlan.week_start == week_start)).all()
+    plan_ids = [p.id for p in plans]
+    subs: list[Subtask] = []
+    if plan_ids:
+        subs = db.scalars(select(Subtask).where(Subtask.plan_id.in_(plan_ids))).all()
+
+    done: list[SummaryItem] = []
+    undone: list[SummaryItem] = []
+    for t in tasks:
+        item = SummaryItem(title=t.title, kind="task", completed_at=t.completed_at)
+        (done if t.completed else undone).append(item)
+    for s in subs:
+        item = SummaryItem(title=s.name, kind="subtask", completed_at=s.completed_at)
+        (done if s.completed else undone).append(item)
+    return done, undone
+
+
+def get_week_summary(db: Session, week_start: date) -> WeekSummaryOut:
+    done, undone = _week_items(db, week_start)
+    summary = db.scalars(
+        select(WeekSummary).where(WeekSummary.week_start == week_start)
+    ).first()
+    return WeekSummaryOut(
+        week_start=week_start,
+        done=done,
+        undone=undone,
+        reflection=summary.reflection if summary else None,
+        next_plan=summary.next_plan if summary else None,
+        updated_at=summary.updated_at if summary else None,
+    )
+
+
+def put_week_summary(db: Session, week_start: date, payload: WeekSummaryUpdate) -> WeekSummaryOut:
+    summary = db.scalars(
+        select(WeekSummary).where(WeekSummary.week_start == week_start)
+    ).first()
+    if summary is None:
+        summary = WeekSummary(
+            week_start=week_start, reflection=payload.reflection, next_plan=payload.next_plan
+        )
+        db.add(summary)
+    else:
+        if payload.reflection is not None:
+            summary.reflection = payload.reflection
+        if payload.next_plan is not None:
+            summary.next_plan = payload.next_plan
+    db.commit()
+    db.refresh(summary)
+    return get_week_summary(db, week_start)

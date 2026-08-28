@@ -109,3 +109,23 @@ class WeeklyStatsOut(BaseModel):
 
 class StatsOut(BaseModel):
     weeks: list[WeeklyStatsOut]
+
+
+class SummaryItem(BaseModel):
+    title: str
+    kind: str  # 'task' | 'subtask'
+    completed_at: datetime.datetime | None = None
+
+
+class WeekSummaryOut(BaseModel):
+    week_start: datetime.date
+    done: list[SummaryItem] = []
+    undone: list[SummaryItem] = []
+    reflection: str | None = None
+    next_plan: str | None = None
+    updated_at: datetime.datetime | None = None
+
+
+class WeekSummaryUpdate(BaseModel):
+    reflection: str | None = None
+    next_plan: str | None = None

@@ -77,6 +77,14 @@ export const usePlansStore = defineStore('plans', {
     async fetchStats(weeks = 12) {
       const { data } = await api.get('/plans/stats', { params: { weeks } })
       return data
+    },
+    async fetchSummary(weekStart) {
+      const { data } = await api.get(`/plans/${weekStart}/summary`)
+      return data
+    },
+    async saveSummary(weekStart, payload) {
+      const { data } = await api.put(`/plans/${weekStart}/summary`, payload)
+      return data
     }
   }
 })
