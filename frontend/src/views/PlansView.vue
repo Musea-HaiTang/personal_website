@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 
 import PlanModal from '../components/plans/PlanModal.vue'
 import ReviewModal from '../components/plans/ReviewModal.vue'
+import StatsPanel from '../components/plans/StatsPanel.vue'
 import SubtaskModal from '../components/plans/SubtaskModal.vue'
 import TaskModal from '../components/plans/TaskModal.vue'
 import { usePlansStore } from '../stores/plans'
@@ -41,6 +42,20 @@ const { plans, todayTasks, allTasks, loaded } = storeToRefs(plansStore)
 const error = ref('')
 const selectedPlanId = ref(null)
 const selectedPlan = computed(() => plans.value.find((p) => p.id === selectedPlanId.value) || null)
+const statData = ref(null)
+const statError = ref('')
+
+async function loadStats() {
+  try {
+    statData.value = await plansStore.fetchStats(12)
+  } catch (e) {
+    statError.value = e.response?.data?.detail || '统计加载失败'
+  }
+}
+function selectTab(key) {
+  activeTab.value = key
+  if (key === 'stat' && !statData.value) loadStats()
+}
 
 // 可记忆列宽
 const colsTask = ref(localStorage.getItem('plan-cols-v2') || '24px 190px 1fr 2fr 56px')
@@ -350,11 +365,12 @@ onMounted(async () => {
           { key: 'plan', label: '本周计划' },
           { key: 'done', label: '已完成' },
           { key: 'review', label: '复盘' },
+          { key: 'stat', label: '统计' },
         ]"
         :key="tab.key"
         class="rounded-lg px-4 py-2 text-sm font-medium text-sub hover:bg-paper-soft"
         :class="{ 'bg-card text-teal shadow-sm ring-1 ring-hairline': activeTab === tab.key }"
-        @click="activeTab = tab.key"
+        @click="selectTab(tab.key)"
       >
         {{ tab.label }}
       </button>
@@ -594,6 +610,9 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- 统计（全局视图，不跟随所选周） -->
+    <StatsPanel v-if="activeTab === 'stat'" :weeks="statData?.weeks || []" :error="statError" />
 
     <!-- 弹窗 -->
     <PlanModal v-if="planModal" :plan="planEditing" @save="savePlan" @close="planModal = false" />

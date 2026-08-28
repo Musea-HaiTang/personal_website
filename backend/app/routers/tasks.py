@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.schemas.tasks import (
+    StatsOut,
     SubtaskCreate,
     SubtaskOut,
     SubtaskUpdate,
@@ -29,6 +30,11 @@ def list_plans(week_start: date | None = Query(default=None), db: Session = Depe
 @router.post("/api/plans", response_model=WeeklyPlanOut, status_code=201)
 def create_plan(payload: WeeklyPlanCreate, db: Session = Depends(get_db)):
     return tasks_service.create_plan(db, payload)
+
+
+@router.get("/api/plans/stats", response_model=StatsOut)
+def plans_stats(weeks: int = Query(default=12, ge=1, le=52), db: Session = Depends(get_db)):
+    return StatsOut(weeks=tasks_service.weekly_stats(db, weeks))
 
 
 @router.get("/api/plans/{plan_id}", response_model=WeeklyPlanOut)

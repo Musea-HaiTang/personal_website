@@ -73,6 +73,10 @@ export const usePlansStore = defineStore('plans', {
       a.download = `周计划-${ws}.md`
       a.click()
       URL.revokeObjectURL(url)
+    },
+    async fetchStats(weeks = 12) {
+      const { data } = await api.get('/plans/stats', { params: { weeks } })
+      return data
     }
   }
 })

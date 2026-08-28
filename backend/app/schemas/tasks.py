@@ -91,3 +91,21 @@ class TaskOut(BaseModel):
     plan_title: str | None = None
     subtask_name: str | None = None
     created_at: datetime.datetime
+
+
+class DailyCount(BaseModel):
+    date: datetime.date
+    count: int
+
+
+class WeeklyStatsOut(BaseModel):
+    week_start: datetime.date
+    completion_rate: int
+    plan_count: int
+    subtask_count: int
+    task_count: int
+    daily_counts: list[DailyCount]
+
+
+class StatsOut(BaseModel):
+    weeks: list[WeeklyStatsOut]

@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,6 +27,11 @@ def _create_plan(client, title="完成个人网站 P0", week="2026-08-17"):
     )
     assert resp.status_code == 201
     return resp.json()
+
+
+def _current_week_start():
+    today = date.today()
+    return today - timedelta(days=today.weekday())
 
 
 def test_plan_and_subtask_crud(client):
@@ -87,6 +92,33 @@ def test_task_crud(client):
 
     assert client.delete(f"/api/tasks/{task['id']}").status_code == 204
     assert client.get("/api/tasks").json() == []
+
+
+def test_plans_stats(client):
+    ws = _current_week_start()
+    plan = client.post(
+        "/api/plans", json={"title": "统计周", "week_start": str(ws), "importance": 3}
+    ).json()
+    sub = client.post(f"/api/plans/{plan['id']}/subtasks", json={"name": "完成子任务"}).json()
+    client.put(f"/api/subtasks/{sub['id']}", json={"completed": True})
+    client.post("/api/tasks", json={"title": "今日任务", "date": str(ws), "importance": 2})
+
+    resp = client.get("/api/plans/stats", params={"weeks": 12})
+    assert resp.status_code == 200
+    weeks = resp.json()["weeks"]
+    assert len(weeks) == 12
+    this = next(w for w in weeks if w["week_start"] == str(ws))
+    assert this["plan_count"] >= 1
+    assert this["subtask_count"] >= 1
+    assert this["task_count"] >= 1
+    assert isinstance(this["completion_rate"], int)
+    assert len(this["daily_counts"]) == 7
+
+
+def test_plans_stats_week_range(client):
+    assert client.get("/api/plans/stats", params={"weeks": 3}).status_code == 200
+    assert len(client.get("/api/plans/stats", params={"weeks": 3}).json()["weeks"]) == 3
+    assert client.get("/api/plans/stats", params={"weeks": 0}).status_code == 422
 
 
 def test_task_filter_by_date(client):
