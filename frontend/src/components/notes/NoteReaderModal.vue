@@ -117,10 +117,15 @@ function buildOutline() {
   const rootEl = bodyEl.value
   if (!rootEl) return
 
-  // 收集全部正文标题（h1~h6），先按原始级别生成大纲，再统一降级正文 h1
-  const headingEls = [...rootEl.querySelectorAll('h1:not(.note-title), h2, h3, h4, h5, h6')]
+  // 收集正文标题（h1~h6）。note-title 是文档标题（用户写的 H1，导入后从正文移除、只存在于
+  // 标题元素里），作为大纲最顶层项放在最前，让后续 h2/h3 章节嵌套在它下面；否则 #34 把正文
+  // H1 提走之后，大纲就没有顶层 H1 了。
+  const titleEl = rootEl.querySelector('h1.note-title')
+  const headingEls = titleEl ? [titleEl] : []
+  headingEls.push(...rootEl.querySelectorAll('h1:not(.note-title), h2, h3, h4, h5, h6'))
   const seen = new Set(['note-title'])
   headingEls.forEach((h) => {
+    if (h === titleEl) return // note-title 保留固定 id，不重复分配
     const base = slugify(h.textContent)
     let id = base
     let i = 2
