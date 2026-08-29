@@ -67,7 +67,7 @@ def test_note_import_autorename_and_errors(client):
         "/api/notes/import",
         data={"folder": "Python 笔记"},
         files=[
-            ("files", ("装饰器.md", "# 装饰器内容".encode("utf-8"), "text/markdown")),
+            ("files", ("装饰器.md", "# 装饰器内容\n\n说明".encode("utf-8"), "text/markdown")),
             ("files", ("装饰器.md", "# 另一篇".encode("utf-8"), "text/markdown")),
             ("files", ("乱码.md", b"\xff\xfe\x00\x01", "text/markdown")),
         ],
@@ -81,7 +81,46 @@ def test_note_import_autorename_and_errors(client):
 
     notes = client.get("/api/notes").json()
     titles = sorted(n["title"] for n in notes)
-    assert titles == ["装饰器", "装饰器(1)"]
+    # 标题来自正文 H1，与文件名（含自动改名后缀）解耦
+    assert titles == ["另一篇", "装饰器内容"]
+
+
+def test_import_uses_h1_as_title_and_strips_it_from_body(client):
+    """导入时正文首行 H1 提升为标题并从正文移除，阅读页不再重复显示标题。"""
+    resp = client.post(
+        "/api/notes/import",
+        data={"folder": "Python 笔记"},
+        files=[
+            (
+                "files",
+                ("python基础知识梳理.md", "# python基础知识梳理\n\n## 一、基础语法\n\n正文".encode("utf-8"), "text/markdown"),
+            )
+        ],
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data["created"]) == 1
+    note = data["created"][0]
+    assert note["title"] == "python基础知识梳理"
+    assert note["content"] == "## 一、基础语法\n\n正文"
+
+    path = notes_store.root / "Python 笔记" / "python基础知识梳理.md"
+    assert path.read_bytes() == "## 一、基础语法\n\n正文".encode("utf-8")
+
+
+def test_import_falls_back_to_filename_when_no_h1(client):
+    """文件首行不是 H1 时，标题回退到文件名，正文保持不变。"""
+    resp = client.post(
+        "/api/notes/import",
+        data={"folder": "Python 笔记"},
+        files=[
+            ("files", ("无标题.md", "这是一段正文，开头没有标题。".encode("utf-8"), "text/markdown")),
+        ],
+    )
+    assert resp.status_code == 200
+    note = resp.json()["created"][0]
+    assert note["title"] == "无标题"
+    assert note["content"] == "这是一段正文，开头没有标题。"
 
 
 def test_note_edit_and_index_routes_are_removed(client):

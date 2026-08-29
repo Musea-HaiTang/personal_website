@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -9,6 +10,28 @@ from app.models.notes import Note
 from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteOut
 from app.services import search, tags
 from app.services.markdown_store import notes_store
+
+
+_ATX_H1 = re.compile(r"^#[ \t]+(.+?)[ \t]*$")
+
+
+def extract_note_title(content: str) -> tuple[str, str]:
+    """取正文首行 H1 作为笔记标题，并从正文中移除该行及其后的空行。
+
+    用户笔记习惯以 `# 标题` 开头（H1 即文档标题，文件名也通常等于它）。导入时把它
+    提升为 title，正文不再重复显示标题，避免阅读页出现两个大标题。首行不是 H1 时
+    返回空标题，由调用方回退到文件名，正文保持不变。
+    """
+    text = content.replace("\r\n", "\n").replace("\r", "\n")
+    lines = text.split("\n")
+    m = _ATX_H1.match(lines[0])
+    if not m:
+        return "", content
+    title = m.group(1).strip()
+    i = 1
+    while i < len(lines) and not lines[i].strip():
+        i += 1
+    return title, "\n".join(lines[i:])
 
 
 def note_or_404(db: Session, note_id: int) -> Note:
@@ -101,13 +124,16 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
         except UnicodeDecodeError:
             errors.append(f"{upload.filename}: 编码不是 UTF-8，请转码后重新导入")
             continue
-        title = Path(upload.filename or "未命名").stem.strip() or "未命名"
-        path = notes_store.unique_path(target, title)
-        final_title = path.stem
-        if final_title != title:
-            renamed.append(final_title)
-        notes_store.write(path, content)
-        note = Note(folder=target, title=final_title, file_path=str(path))
+        filename_title = Path(upload.filename or "未命名").stem.strip() or "未命名"
+        h1_title, body = extract_note_title(content)
+        title = h1_title or filename_title
+        # 文件名沿用原文件名，仅在重名时自动改名；标题来自正文 H1，与文件名解耦。
+        path = notes_store.unique_path(target, filename_title)
+        final_filename = path.stem
+        if final_filename != filename_title:
+            renamed.append(final_filename)
+        notes_store.write(path, body)
+        note = Note(folder=target, title=title, file_path=str(path))
         db.add(note)
         db.commit()
         db.refresh(note)
