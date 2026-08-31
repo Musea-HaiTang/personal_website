@@ -1,10 +1,11 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 import BaseModal from '../BaseModal.vue'
 import { useNotesStore } from '../../stores/notes'
 import { fmtDate } from '../../utils/date'
 import { renderNote } from './noteRender'
+import { buildOutlineTree } from './noteOutline'
 
 const props = defineProps({
   note: { type: Object, default: null }
@@ -24,85 +25,31 @@ const siblings = computed(() =>
   notesStore.notes.filter((n) => n.folder === current.value?.folder)
 )
 
-const renderedHtml = computed(() => {
-  return renderNote(current.value?.content || '').html
-})
+const rendered = computed(() => renderNote(current.value?.content || ''))
+const renderedHtml = computed(() => rendered.value.html)
 
 /* ---------- 侧栏状态 ---------- */
 const activeTab = ref('outline')
 const sidebarCollapsed = ref(false)
 
 /* ---------- 大纲 ---------- */
-const bodyEl = ref(null)
-const outlineRoot = ref(null)
 const nodeCollapsed = ref({})
-
-function slugify(text) {
-  const slug = (text || '')
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-  return slug || 'section'
-}
-
-function buildOutline() {
-  const rootEl = bodyEl.value
-  if (!rootEl) return
-
-  // 收集正文标题（h1~h6）。note-title 是文档标题（用户写的 H1，导入后从正文移除、只存在于
-  // 标题元素里），作为大纲最顶层项放在最前，让后续 h2/h3 章节嵌套在它下面；否则 #34 把正文
-  // H1 提走之后，大纲就没有顶层 H1 了。
-  const titleEl = rootEl.querySelector('h1.note-title')
-  const headingEls = titleEl ? [titleEl] : []
-  headingEls.push(...rootEl.querySelectorAll('h1:not(.note-title), h2, h3, h4, h5, h6'))
-  const seen = new Set(['note-title'])
-  headingEls.forEach((h) => {
-    if (h === titleEl) return // note-title 保留固定 id，不重复分配
-    const base = slugify(h.textContent)
-    let id = base
-    let i = 2
-    while (seen.has(id)) id = `${base}-${i++}`
-    seen.add(id)
-    h.id = id
-  })
-
-  // 用栈按标题级别构筑层级树：h1 为顶层，h2 归属当前 h1，h3 归属当前 h2，依此类推
-  // 根节点为虚拟容器（不渲染正文文件名），大纲只包含正文里实际写出的标题。
-  const root = { id: '__root__', text: '', children: [] }
-  const stack = [{ node: root, level: 0 }]
-  headingEls.forEach((h) => {
-    const level = Number(h.tagName[1]) // 'H1' -> 1 ... 'H6' -> 6
-    const item = { id: h.id, text: h.textContent.trim(), children: [], level }
-    while (stack.length > 1 && stack[stack.length - 1].level >= level) stack.pop()
-    stack[stack.length - 1].node.children.push(item)
-    stack.push({ node: item, level })
-  })
-  outlineRoot.value = root
-
-  // 默认只展开前两级（h1 书名/章节、h2 小节），更深层（h3+）收起，像 Typora 大纲一样简洁
+const outlineRoot = computed(() =>
+  buildOutlineTree(current.value?.title || '无标题', rendered.value.headings)
+)
+const defaultCollapsed = (root) => {
   const collapsed = {}
-  const markCollapsed = (node) => {
+  const mark = (node) => {
     if (node.level >= 2) collapsed[node.id] = true
-    node.children.forEach(markCollapsed)
+    node.children.forEach(mark)
   }
-  markCollapsed(root)
-  nodeCollapsed.value = collapsed
-
-  // 正文 h1（章节）降级为 h2，与 note-title 区分；保留 id 以便大纲跳转
-  rootEl.querySelectorAll('h1:not(.note-title)').forEach((h1) => {
-    const h2 = document.createElement('h2')
-    h2.id = h1.id
-    h2.innerHTML = h1.innerHTML
-    h1.replaceWith(h2)
-  })
+  mark(root)
+  return collapsed
 }
-
 watch(
-  [renderedHtml, current],
-  async () => {
-    await nextTick()
-    buildOutline()
+  outlineRoot,
+  (root) => {
+    nodeCollapsed.value = defaultCollapsed(root)
   },
   { immediate: true }
 )
@@ -204,7 +151,7 @@ async function switchNote(note) {
           </div>
         </aside>
 
-        <div ref="bodyEl" class="reader-body markdown-body">
+        <div class="reader-body markdown-body">
           <h1 id="note-title" class="note-title">{{ current?.title || '无标题' }}</h1>
           <p class="meta-line">
             {{ current?.folder }} / {{ fmtDate(current?.updated_at) }}

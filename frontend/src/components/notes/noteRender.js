@@ -67,12 +67,56 @@ function mergeConsecutiveBlockquotes(html) {
   return html.replace(/<\/blockquote>\s*<blockquote>/g, '')
 }
 
+function slugify(text) {
+  const slug = (text || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug || 'section'
+}
+
+// 从标题的 inline token 提取可读纯文本（近似 DOM textContent，忽略图片 alt）。
+function headingText(inlineToken) {
+  if (!inlineToken) return ''
+  const parts = []
+  for (const c of inlineToken.children || []) {
+    if (c.type === 'text' || c.type === 'code_inline') parts.push(c.content)
+  }
+  return parts.join('').trim()
+}
+
 /**
- * 渲染 markdown 笔记正文，返回渲染后的 HTML。
+ * 渲染 markdown 笔记正文，返回渲染后的 HTML 与从解析树提取的标题列表。
  * @param {string} content 原始 markdown 文本
- * @returns {{ html: string }}
+ * @returns {{ html: string, headings: Array<{id: string, level: number, text: string}> }}
  */
 export function renderNote(content) {
   const text = String(content || '').replace(/\r\n/g, '\n').replace(/\r/g, '')
-  return { html: mergeConsecutiveBlockquotes(md.render(text)) }
+  const tokens = md.parse(text, {})
+  const seen = new Set(['note-title']) // note-title 是文档标题，占据固定 id
+  const headings = []
+
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i]
+    if (t.type !== 'heading_open') continue
+    const level = Number(t.tag[1]) // 'h1' -> 1 ... 'h6' -> 6
+    const textPlain = headingText(tokens[i + 1])
+    const base = slugify(textPlain)
+    let id = base
+    let n = 2
+    while (seen.has(id)) id = `${base}-${n++}`
+    seen.add(id)
+    t.attrSet('id', id)
+    headings.push({ id, level, text: textPlain })
+
+    // 内容 h1（章节）降级为 h2，与标题区 note-title 区分；大纲仍按作者结构用原始级别。
+    if (level === 1) {
+      t.tag = 'h2'
+      tokens[i + 2].tag = 'h2'
+    }
+  }
+
+  const html = mergeConsecutiveBlockquotes(md.renderer.render(tokens, md.options, {}))
+  return { html, headings }
 }
