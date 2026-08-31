@@ -1,7 +1,7 @@
 # 个人网站开发计划
 
 > 单用户个人网站，Vue 3 + FastAPI，本机免登录一键启动（`start.bat`）。
-> 当前状态：**P0 五个核心模块已完成并通过验收（2026-08-16）**；**P1 学习模块已精简为笔记导入 + 只读 Markdown 阅读（2026-08-18）**；**P2 计划页增强（过往周浏览 + 统计 + 周总结）已完成（2026-08-28）**；**#26/#27 阅读弹窗大纲样式调整已完成（2026-08-29）**；**#34 笔记导入标题去重已完成（2026-08-29）**；**#35 阅读弹窗大纲恢复 H1 顶层项已完成（2026-08-29）**。
+> 当前状态：**P0 五个核心模块已完成并通过验收（2026-08-16）**；**P1 学习模块已精简为笔记导入 + 只读 Markdown 阅读（2026-08-18）**；**P2 计划页增强（过往周浏览 + 统计 + 周总结）已完成（2026-08-28）**；**#26/#27 阅读弹窗大纲样式调整已完成（2026-08-29）**；**#34 笔记导入标题去重已完成（2026-08-29）**；**#35 阅读弹窗大纲恢复 H1 顶层项已完成（2026-08-29）**；**#36 笔记列表/阅读管线重构（列表不带正文、服务端搜索）已实现，待 code-review（2026-08-31）**。
 
 ## 1. 项目概述
 
@@ -68,7 +68,7 @@ personal_website/
 | 计划 | `/api/plans`、`/api/subtasks`、`/api/tasks` | CRUD；按日期/周筛选；关联完成；顺延；周导出；近12周统计（`/api/plans/stats`）；周总结（`/api/plans/{week_start}/summary`） |
 | 日记 | `/api/diary` | CRUD；按日期、标签、关键词搜索 |
 | 闪念 | `/api/flash` | 新增/删除；按日期、关键词过滤 |
-| 笔记 | `/api/notes` | 列表/文件夹/新建/导入/删除；单篇读取 |
+| 笔记 | `/api/notes` | 列表（含关键词搜索，只回元信息）/文件夹/新建/导入/删除；单篇读取返回全文 |
 | 番茄钟 | `/api/pomodoro/sessions` | 创建会话、按日统计、可选绑定任务 |
 | 导航 | `/api/nav/categories`、`/api/nav/links`、`/api/nav/favicons` | CRUD、置顶排序、favicon 本地缓存 |
 
@@ -163,6 +163,20 @@ personal_website/
 标准流程、技能清单与审查纪律见 [docs/agents/workflow.md](docs/agents/workflow.md)。新功能/修复按该文档执行；架构重构需求先出方案并经确认后再实施。
 
 ## 9. 迭代记录
+
+### 2026-08-31：#36 笔记列表/阅读管线重构（收拢搜索，列表不带正文）
+
+- 背景：源自架构体检第 1 项。此前关键词匹配存在三处（后端 `search.matches` 服务笔记/日记 + 前端 `stores/notes.js` 的 `filtered` 重复实现）；`list_notes` 对每篇笔记读两遍文件（先匹配再组装）；列表接口把每篇完整正文返给前端，仅为喂给阅读弹窗。
+- 改动：
+  - 后端 `schemas/notes.py`：拆出 `NoteListItem`（id/folder/title/tags/updated_at，无正文）与 `NoteDetail`（含正文）；`ImportResult.created` 改用列表项。
+  - `services/notes.py`：`list_notes` 只在有关键词时读文件做正文匹配，其余回元信息（零文件读取）；新增 `note_to_list_item`；`get_note`/`create_note` 返回 `NoteDetail`。
+  - `routers/notes.py`：`GET /api/notes` 返回 `list[NoteListItem]`，`GET/POST /api/notes/{id}` 返回 `NoteDetail`。
+  - 前端 `stores/notes.js`：删除 `filtered` 里的 substring 重复匹配，改为分类本地筛 + 关键词交给后端（`/notes?q=`），新增 `fetchNote(id)`。
+  - `views/NotesView.vue`：列表卡片只显示标题（去掉摘要行）；点开时 `fetchNote(id)` 取详情传给弹窗；关键词输入加 300ms 防抖；分类页签仍为本地即时切换。
+  - `components/notes/NoteReaderModal.vue`：`switchNote` 改为按 id 取详情全文再渲染。
+- 验证：后端 pytest 全量 56 项通过；`npm run build` 通过；隐私检查通过（仅暂存 7 个目标文件，未含 `.env`/`backend/data/`/`dist`）。
+- 业务作用：搜索规则只留服务端一份、改一处即生效；列表浏览不再触发文件读取、也不再传输整篇正文，点开阅读才按 id 取全文；列表更轻、更快。
+- 状态：实现完成，待 code-review。
 
 ### 2026-08-29：#35 阅读弹窗大纲恢复 H1 顶层项
 
