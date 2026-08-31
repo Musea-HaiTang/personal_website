@@ -113,7 +113,8 @@ export function renderNote(content) {
     // 内容 h1（章节）降级为 h2，与标题区 note-title 区分；大纲仍按作者结构用原始级别。
     if (level === 1) {
       t.tag = 'h2'
-      tokens[i + 2].tag = 'h2'
+      const close = tokens[i + 2]
+      if (close && close.type === 'heading_close') close.tag = 'h2'
     }
   }
 
