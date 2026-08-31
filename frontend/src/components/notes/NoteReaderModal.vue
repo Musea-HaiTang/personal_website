@@ -206,8 +206,13 @@ function jumpTo(id) {
   if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-function switchNote(note) {
-  current.value = note
+async function switchNote(note) {
+  // 列表项只含元信息，切换时按 id 取回详情全文再渲染。
+  try {
+    current.value = await notesStore.fetchNote(note.id)
+  } catch (e) {
+    window.alert(e.response?.data?.detail || '打开笔记失败')
+  }
 }
 </script>
 

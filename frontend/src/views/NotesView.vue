@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import ImportNotesModal from '../components/notes/ImportNotesModal.vue'
 import NoteReaderModal from '../components/notes/NoteReaderModal.vue'
@@ -11,29 +11,27 @@ const notesStore = useNotesStore()
 
 /* ---------- 笔记列表 ---------- */
 const chips = computed(() => [
-  { folder: 'all', name: '全部', count: notesStore.notes.length },
+  { folder: 'all', name: '全部', count: notesStore.total },
   ...notesStore.folders.map((f) => ({ folder: f.folder, name: f.folder, count: f.count }))
 ])
 
-function excerpt(content, limit = 90) {
-  const plain = (content || '').replace(/\s+/g, ' ').trim()
-  return plain.length <= limit ? plain : plain.slice(0, limit) + '…'
-}
-
 /* ---------- 弹窗编排 ---------- */
-const readerId = ref(null)
+const readerNote = ref(null)
 const importOpen = ref(false)
 
-const readerOpen = computed(() => readerId.value !== null)
-const readerNote = computed(() => notesStore.notes.find((n) => n.id === readerId.value) || null)
+const readerOpen = computed(() => readerNote.value !== null)
 const importNotice = ref('')
 let importNoticeTimer = null
 
-function openReader(note) {
-  readerId.value = note.id
+async function openReader(note) {
+  try {
+    readerNote.value = await notesStore.fetchNote(note.id)
+  } catch (e) {
+    window.alert(e.response?.data?.detail || '打开笔记失败')
+  }
 }
 function closeReader() {
-  readerId.value = null
+  readerNote.value = null
 }
 function showImportNotice(message) {
   importNotice.value = message
@@ -56,11 +54,20 @@ async function removeNote(note) {
     window.alert(e.response?.data?.detail || '删除失败')
   }
 }
+let kwTimer = null
+watch(
+  () => notesStore.kw,
+  () => {
+    if (kwTimer) window.clearTimeout(kwTimer)
+    kwTimer = window.setTimeout(() => notesStore.refresh(), 300)
+  }
+)
 onMounted(() => {
   if (!notesStore.loaded) notesStore.refresh()
 })
 onBeforeUnmount(() => {
   if (importNoticeTimer) window.clearTimeout(importNoticeTimer)
+  if (kwTimer) window.clearTimeout(kwTimer)
 })
 </script>
 
@@ -119,7 +126,6 @@ onBeforeUnmount(() => {
           @click="openReader(n)"
         >
           <span class="font-medium text-ink" v-html="hlHtml(n.title, notesStore.kw)"></span>
-          <span class="line-clamp-2 text-[12.5px] leading-relaxed text-sub" v-html="hlHtml(excerpt(n.content), notesStore.kw)"></span>
           <span class="text-[11px] text-sub">{{ fmtDate(n.updated_at) }} · {{ n.folder }}</span>
           <span class="flex flex-wrap gap-1">
             <span

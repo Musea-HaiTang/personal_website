@@ -12,26 +12,36 @@ export const useNotesStore = defineStore('notes', {
     error: ''
   }),
   getters: {
+    // 笔记总数（各分类计数之和），用于「全部」页签的稳定计数，不随关键词变化。
+    total() {
+      return this.folders.reduce((sum, f) => sum + f.count, 0)
+    },
+    // 分类在本地筛（即时切页签）；关键词已交给后端。
     filtered() {
-      const kw = this.kw.trim().toLowerCase()
-      return this.notes.filter((n) => {
-        if (this.folder !== 'all' && n.folder !== this.folder) return false
-        if (!kw) return true
-        return (n.title + ' ' + (n.tags || []).join(' ') + ' ' + n.content).toLowerCase().includes(kw)
-      })
+      if (this.folder === 'all') return this.notes
+      return this.notes.filter((n) => n.folder === this.folder)
     }
   },
   actions: {
     async refresh() {
       this.error = ''
       try {
-        const [notes, folders] = await Promise.all([api.get('/notes'), api.get('/notes/folders')])
+        const params = {}
+        if (this.kw.trim()) params.q = this.kw.trim()
+        const [notes, folders] = await Promise.all([
+          api.get('/notes', { params }),
+          api.get('/notes/folders')
+        ])
         this.notes = notes.data
         this.folders = folders.data
         this.loaded = true
       } catch (e) {
         this.error = e.response?.data?.detail || '加载笔记失败'
       }
+    },
+    async fetchNote(id) {
+      const { data } = await api.get(`/notes/${id}`)
+      return data
     },
     async create(payload) {
       return (await api.post('/notes', payload)).data

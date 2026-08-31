@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.models.note_folders import NoteFolder
 from app.models.notes import Note
-from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteOut
+from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteDetail, NoteListItem
 from app.services import search, tags
 from app.services.markdown_store import notes_store
 
@@ -41,8 +41,8 @@ def note_or_404(db: Session, note_id: int) -> Note:
     return note
 
 
-def note_to_out(note: Note) -> NoteOut:
-    return NoteOut(
+def note_to_detail(note: Note) -> NoteDetail:
+    return NoteDetail(
         id=note.id,
         folder=note.folder,
         title=note.title,
@@ -52,7 +52,17 @@ def note_to_out(note: Note) -> NoteOut:
     )
 
 
-def list_notes(db: Session, folder: str | None, q: str | None) -> list[NoteOut]:
+def note_to_list_item(note: Note) -> NoteListItem:
+    return NoteListItem(
+        id=note.id,
+        folder=note.folder,
+        title=note.title,
+        tags=tags.to_list(note.tags),
+        updated_at=note.updated_at,
+    )
+
+
+def list_notes(db: Session, folder: str | None, q: str | None) -> list[NoteListItem]:
     stmt = select(Note).order_by(Note.updated_at.desc())
     if folder:
         stmt = stmt.where(Note.folder == folder)
@@ -60,11 +70,13 @@ def list_notes(db: Session, folder: str | None, q: str | None) -> list[NoteOut]:
 
     results = []
     for note in notes:
-        content = notes_store.read(Path(note.file_path))
-        tags_text = " ".join(tags.to_list(note.tags))
-        if not search.matches([note.title, tags_text, content], q):
-            continue
-        results.append(note_to_out(note))
+        # 仅在有关键词时读文件做正文匹配；否则列表只回元信息，零文件读取。
+        if q:
+            content = notes_store.read(Path(note.file_path))
+            tags_text = " ".join(tags.to_list(note.tags))
+            if not search.matches([note.title, tags_text, content], q):
+                continue
+        results.append(note_to_list_item(note))
     return results
 
 
@@ -93,11 +105,11 @@ def create_folder(db: Session, payload: FolderCreate) -> FolderOut:
     return FolderOut(folder=folder.name, count=0)
 
 
-def get_note(db: Session, note_id: int) -> NoteOut:
-    return note_to_out(note_or_404(db, note_id))
+def get_note(db: Session, note_id: int) -> NoteDetail:
+    return note_to_detail(note_or_404(db, note_id))
 
 
-def create_note(db: Session, payload: NoteCreate) -> NoteOut:
+def create_note(db: Session, payload: NoteCreate) -> NoteDetail:
     folder = payload.folder.strip() or "未分类"
     title = payload.title.strip()
     if db.scalar(select(Note).where(Note.folder == folder, Note.title == title)):
@@ -107,13 +119,13 @@ def create_note(db: Session, payload: NoteCreate) -> NoteOut:
     db.add(note)
     db.commit()
     db.refresh(note)
-    return note_to_out(note)
+    return note_to_detail(note)
 
 
 def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
     """批量导入：UTF-8 解码 → 同名自动改名 → 落盘入库；逐文件失败不中断。"""
     target = folder.strip() or "未分类"
-    created: list[NoteOut] = []
+    created: list[NoteListItem] = []
     renamed: list[str] = []
     errors: list[str] = []
 
@@ -137,7 +149,7 @@ def import_notes(db: Session, folder: str, uploads: list) -> ImportResult:
         db.add(note)
         db.commit()
         db.refresh(note)
-        created.append(note_to_out(note))
+        created.append(note_to_list_item(note))
 
     return ImportResult(created=created, renamed=renamed, errors=errors)
 

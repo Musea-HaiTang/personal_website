@@ -14,10 +14,27 @@ def test_note_create_writes_markdown_file(client):
     assert note["title"] == "装饰器原理"
     assert note["folder"] == "Python 笔记"
     assert note["tags"] == ["基础"]
+    assert note["content"] == "# 装饰器\n\n本质是返回新函数。"
 
     path = notes_store.root / "Python 笔记" / "装饰器原理.md"
     assert path.exists()
     assert path.read_text(encoding="utf-8") == "# 装饰器\n\n本质是返回新函数。"
+
+
+def test_note_list_returns_metadata_not_content(client):
+    note = _create(client, title="装饰器", content="# 装饰器\n\n正文内容").json()
+    items = client.get("/api/notes").json()
+    assert len(items) == 1
+    item = items[0]
+    # 列表项只含元信息，不含正文
+    assert "content" not in item
+    assert item["title"] == "装饰器"
+    assert item["folder"] == "Python 笔记"
+    assert item["tags"] == ["基础"]
+    assert "updated_at" in item
+    # 单条详情仍返回完整正文
+    detail = client.get(f"/api/notes/{note['id']}").json()
+    assert detail["content"] == "# 装饰器\n\n正文内容"
 
 
 def test_note_duplicate_paste_conflict(client):
@@ -102,7 +119,10 @@ def test_import_uses_h1_as_title_and_strips_it_from_body(client):
     assert len(data["created"]) == 1
     note = data["created"][0]
     assert note["title"] == "python基础知识梳理"
-    assert note["content"] == "## 一、基础语法\n\n正文"
+    # 列表/导入结果只回元信息，正文改从单条详情校验
+    assert "content" not in note
+    detail = client.get(f"/api/notes/{note['id']}").json()
+    assert detail["content"] == "## 一、基础语法\n\n正文"
 
     path = notes_store.root / "Python 笔记" / "python基础知识梳理.md"
     assert path.read_bytes() == "## 一、基础语法\n\n正文".encode("utf-8")
@@ -120,7 +140,9 @@ def test_import_falls_back_to_filename_when_no_h1(client):
     assert resp.status_code == 200
     note = resp.json()["created"][0]
     assert note["title"] == "无标题"
-    assert note["content"] == "这是一段正文，开头没有标题。"
+    assert "content" not in note
+    detail = client.get(f"/api/notes/{note['id']}").json()
+    assert detail["content"] == "这是一段正文，开头没有标题。"
 
 
 def test_note_edit_and_index_routes_are_removed(client):
@@ -184,7 +206,9 @@ def test_note_import_normalizes_newlines_on_disk(client):
     assert resp.status_code == 200
     data = resp.json()
     assert len(data["created"]) == 1
-    assert data["created"][0]["content"] == "<template>\n  <p>x</p>\n</template>"
+    note_id = data["created"][0]["id"]
+    detail = client.get(f"/api/notes/{note_id}").json()
+    assert detail["content"] == "<template>\n  <p>x</p>\n</template>"
 
     path = notes_store.root / "Vue3 笔记" / "组件.md"
     assert path.read_bytes() == "<template>\n  <p>x</p>\n</template>".encode("utf-8")

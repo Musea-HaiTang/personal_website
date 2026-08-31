@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteOut
+from app.schemas.notes import FolderCreate, FolderOut, ImportResult, NoteCreate, NoteDetail, NoteListItem
 from app.services import notes as notes_service
 
 router = APIRouter(prefix="/api/notes", tags=["notes"])
 
 
-@router.get("", response_model=list[NoteOut])
+@router.get("", response_model=list[NoteListItem])
 def list_notes(
     folder: str | None = Query(default=None),
     q: str | None = Query(default=None),
@@ -27,12 +27,12 @@ def create_folder(payload: FolderCreate, db: Session = Depends(get_db)):
     return notes_service.create_folder(db, payload)
 
 
-@router.get("/{note_id}", response_model=NoteOut)
+@router.get("/{note_id}", response_model=NoteDetail)
 def get_note(note_id: int, db: Session = Depends(get_db)):
     return notes_service.get_note(db, note_id)
 
 
-@router.post("", response_model=NoteOut, status_code=201)
+@router.post("", response_model=NoteDetail, status_code=201)
 def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
     return notes_service.create_note(db, payload)
 
