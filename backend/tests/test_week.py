@@ -53,7 +53,12 @@ def test_fetch_week_collects_plan_subtask_and_standalone_task(client):
     # 子任务关联的当日任务由子任务代表，不单独计入 tasks
     client.post(
         "/api/tasks",
-        json={"title": "子任务执行", "date": str(ws + timedelta(days=1)), "plan_id": plan["id"], "subtask_id": sub["id"]},
+        json={
+            "title": "子任务执行",
+            "date": str(ws + timedelta(days=1)),
+            "plan_id": plan["id"],
+            "subtask_id": sub["id"],
+        },
     )
 
     with SessionLocal() as db:

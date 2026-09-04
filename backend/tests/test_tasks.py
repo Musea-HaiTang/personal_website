@@ -1,4 +1,5 @@
 from datetime import date, timedelta
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -213,8 +214,6 @@ def test_export_week(client):
 
 
 def test_export_rate_consistent_with_stats(client):
-    import re
-
     ws = _current_week_start()
     plan = client.post(
         "/api/plans", json={"title": "周计划", "week_start": str(ws), "importance": 2}
