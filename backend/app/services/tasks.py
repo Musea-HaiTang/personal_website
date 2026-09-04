@@ -1,7 +1,5 @@
 from datetime import date, timedelta
 
-from collections import defaultdict
-
 from fastapi import HTTPException
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -23,6 +21,7 @@ from app.schemas.tasks import (
     WeekSummaryOut,
     WeekSummaryUpdate,
 )
+from app.services.week import fetch_week, week_start_of
 
 
 def plan_or_404(db: Session, plan_id: int) -> WeeklyPlan:
@@ -218,79 +217,25 @@ def export_week_markdown(db: Session, week_start: date) -> str:
     return "\n".join(lines)
 
 
-def current_week_start() -> date:
-    """本周第一天（周一）。"""
-    today = now_local().date()
-    return today - timedelta(days=today.weekday())
-
-
-def _week_start_of(day: date) -> date:
-    """某日所在周的周一。"""
-    return day - timedelta(days=day.weekday())
-
-
 def weekly_stats(db: Session, weeks: int) -> list[WeeklyStatsOut]:
     """近 N 周计划统计：完成率 / 计划数 / 子任务数 / 任务数 + 每日完成计数（供热力图）。"""
-    end_week = current_week_start()
+    end_week = week_start_of(now_local().date())
     starts = [end_week - timedelta(weeks=(weeks - 1 - i)) for i in range(weeks)]
-    range_start = starts[0]
-    range_end = starts[-1] + timedelta(days=6)
-
-    plans = db.scalars(select(WeeklyPlan).where(WeeklyPlan.week_start.in_(starts))).all()
-    plans_by_week: dict[date, list[WeeklyPlan]] = defaultdict(list)
-    for p in plans:
-        plans_by_week[p.week_start].append(p)
-
-    plan_ids = [p.id for p in plans]
-    subtasks_by_plan: dict[int, list[Subtask]] = defaultdict(list)
-    subs: list[Subtask] = []
-    if plan_ids:
-        subs = db.scalars(select(Subtask).where(Subtask.plan_id.in_(plan_ids))).all()
-        for s in subs:
-            subtasks_by_plan[s.plan_id].append(s)
-
-    tasks = db.scalars(
-        select(Task).where(Task.date >= range_start, Task.date <= range_end)
-    ).all()
-    tasks_by_week: dict[date, list[Task]] = defaultdict(list)
-    for t in tasks:
-        tasks_by_week[_week_start_of(t.date)].append(t)
-
-    # 每日完成计数（子任务 + 任务按 completed_at 日期）
-    comp_by_date: dict[date, int] = defaultdict(int)
-    for s in subs:
-        if s.completed and s.completed_at:
-            comp_by_date[s.completed_at.date()] += 1
-    for t in tasks:
-        if t.completed and t.completed_at:
-            comp_by_date[t.completed_at.date()] += 1
-
-    result = []
+    result: list[WeeklyStatsOut] = []
     for ws in starts:
-        we = ws + timedelta(days=6)
-        plans_w = plans_by_week.get(ws, [])
-        subs_w: list[Subtask] = []
-        for p in plans_w:
-            subs_w.extend(subtasks_by_plan.get(p.id, []))
-        tasks_w = tasks_by_week.get(ws, [])
-
-        done = sum(1 for s in subs_w if s.completed) + sum(
-            1 for t in tasks_w if t.completed and t.subtask_id is None
-        )
-        total = len(subs_w) + sum(1 for t in tasks_w if t.subtask_id is None)
-        rate = round(done / total * 100) if total else 0
-
+        agg = fetch_week(db, ws)
+        counts = agg.daily_counts
         daily = [
-            DailyCount(date=ws + timedelta(days=d), count=comp_by_date.get(ws + timedelta(days=d), 0))
+            DailyCount(date=ws + timedelta(days=d), count=counts.get(ws + timedelta(days=d), 0))
             for d in range(7)
         ]
         result.append(
             WeeklyStatsOut(
                 week_start=ws,
-                completion_rate=rate,
-                plan_count=len(plans_w),
-                subtask_count=len(subs_w),
-                task_count=len(tasks_w),
+                completion_rate=agg.completion_rate,
+                plan_count=agg.plan_count,
+                subtask_count=agg.subtask_count,
+                task_count=agg.task_count,
                 daily_counts=daily,
             )
         )
