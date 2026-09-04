@@ -212,6 +212,31 @@ def test_export_week(client):
     assert "共 2 项，完成 1 项" in body
 
 
+def test_export_rate_consistent_with_stats(client):
+    import re
+
+    ws = _current_week_start()
+    plan = client.post(
+        "/api/plans", json={"title": "周计划", "week_start": str(ws), "importance": 2}
+    ).json()
+    sub = client.post(f"/api/plans/{plan['id']}/subtasks", json={"name": "子任务"}).json()
+    # 周中的独立任务（未挂子任务），也应计入周完成率
+    client.post(
+        "/api/tasks",
+        json={"title": "独立任务", "date": str(ws + timedelta(days=1)), "importance": 2},
+    )
+    client.put(f"/api/subtasks/{sub['id']}", json={"completed": True})
+
+    body = client.get("/api/plans/week/export", params={"week_start": str(ws)}).text
+    m = re.search(r"完成率 (\d+)%", body)
+    assert m is not None
+    export_rate = int(m.group(1))
+
+    stats = client.get("/api/plans/stats", params={"weeks": 12}).json()["weeks"]
+    this = next(w for w in stats if w["week_start"] == str(ws))
+    assert this["completion_rate"] == export_rate
+
+
 def test_404_and_validation(client):
     assert client.put("/api/plans/999", json={"title": "x"}).status_code == 404
     assert client.delete("/api/subtasks/999").status_code == 404

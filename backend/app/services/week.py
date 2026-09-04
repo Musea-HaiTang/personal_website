@@ -88,7 +88,11 @@ def fetch_week(db: Session, week_start: date) -> WeekAggregate:
     subtasks: list[Subtask] = []
     if plan_ids:
         subtasks = list(
-            db.scalars(select(Subtask).where(Subtask.plan_id.in_(plan_ids))).all()
+            db.scalars(
+                select(Subtask)
+                .where(Subtask.plan_id.in_(plan_ids))
+                .order_by(Subtask.id)
+            ).all()
         )
     tasks = list(
         db.scalars(

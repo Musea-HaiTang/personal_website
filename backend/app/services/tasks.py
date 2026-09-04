@@ -190,30 +190,22 @@ def rollover_task(db: Session, task_id: int, new_date: date | None = None) -> Ta
 
 
 def export_week_markdown(db: Session, week_start: date) -> str:
-    """导出本周计划为 Markdown：按计划列出子任务与完成状态，结尾给完成率。"""
-    plans = db.scalars(
-        select(WeeklyPlan)
-        .where(WeeklyPlan.week_start == week_start)
-        .order_by(WeeklyPlan.importance.desc(), WeeklyPlan.id)
-    ).all()
-    lines = [f"# {week_start} ~ {week_start + timedelta(days=6)} 周计划", ""]
-    total = 0
-    done = 0
-    for plan in plans:
+    """导出本周计划为 Markdown：按计划列出子任务与完成状态，结尾给完成率（含独立任务口径）。"""
+    agg = fetch_week(db, week_start)
+    lines = [f"# {agg.week_start} ~ {agg.week_end} 周计划", ""]
+    for plan in agg.plans:
         lines.append(f"## {plan.title}")
-        for sub in plan.subtasks:
-            total += 1
+        subs = [s for s in agg.subtasks if s.plan_id == plan.id]
+        for sub in subs:
             if sub.completed:
-                done += 1
                 when = sub.completed_at.strftime("%m-%d %H:%M") if sub.completed_at else ""
                 lines.append(f"- [x] {sub.name}（完成于 {when}）")
             else:
                 lines.append(f"- [ ] {sub.name}")
-        if not plan.subtasks:
+        if not subs:
             lines.append("- （还没有子任务）")
         lines.append("")
-    rate = f"{done / total * 100:.1f}%" if total else "0%"
-    lines.append(f"共 {total} 项，完成 {done} 项，完成率 {rate}")
+    lines.append(f"共 {agg.total} 项，完成 {agg.done} 项，完成率 {agg.completion_rate}%")
     return "\n".join(lines)
 
 
@@ -242,29 +234,16 @@ def weekly_stats(db: Session, weeks: int) -> list[WeeklyStatsOut]:
     return result
 
 
-def _week_items(db: Session, week_start: date) -> tuple[list[SummaryItem], list[SummaryItem]]:
-    """该周完成 / 未完成清单（任务 + 该周计划的子任务，实时派生）。"""
-    we = week_start + timedelta(days=6)
-    tasks = db.scalars(select(Task).where(Task.date >= week_start, Task.date <= we)).all()
-    plans = db.scalars(select(WeeklyPlan).where(WeeklyPlan.week_start == week_start)).all()
-    plan_ids = [p.id for p in plans]
-    subs: list[Subtask] = []
-    if plan_ids:
-        subs = db.scalars(select(Subtask).where(Subtask.plan_id.in_(plan_ids))).all()
-
+def get_week_summary(db: Session, week_start: date) -> WeekSummaryOut:
+    agg = fetch_week(db, week_start)
     done: list[SummaryItem] = []
     undone: list[SummaryItem] = []
-    for t in tasks:
+    for t in agg.tasks:
         item = SummaryItem(title=t.title, kind="task", completed_at=t.completed_at)
         (done if t.completed else undone).append(item)
-    for s in subs:
+    for s in agg.subtasks:
         item = SummaryItem(title=s.name, kind="subtask", completed_at=s.completed_at)
         (done if s.completed else undone).append(item)
-    return done, undone
-
-
-def get_week_summary(db: Session, week_start: date) -> WeekSummaryOut:
-    done, undone = _week_items(db, week_start)
     summary = db.scalars(
         select(WeekSummary).where(WeekSummary.week_start == week_start)
     ).first()
